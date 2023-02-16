@@ -27,44 +27,17 @@ _✨ NoneBot2 解析视频链接/小程序插件 ✨_
 
 ## 💿 安装
 
-<details>
-<summary>使用 nb-cli 安装</summary>
-在 nonebot2 项目的根目录下打开命令行, 输入以下指令即可安装
+1. 使用 nb-cli 安装，不需要手动添加入口，更新使用 pip
 
-    nb plugin install nonebot-plugin-resolver
+```
+nb plugin install nonebot_plugin_resolver
+```
 
-</details>
+2. 使用 pip 安装和更新，初次安装需要手动添加入口
 
-<details>
-<summary>使用包管理器安装</summary>
-在 nonebot2 项目的插件目录下, 打开命令行, 根据你使用的包管理器, 输入相应的安装命令
-
-<details>
-<summary>pip</summary>
-
-    pip install nonebot-plugin-resolver
-</details>
-<details>
-<summary>pdm</summary>
-
-    pdm add nonebot-plugin-resolver
-</details>
-<details>
-<summary>poetry</summary>
-
-    poetry add nonebot-plugin-resolver
-</details>
-<details>
-<summary>conda</summary>
-
-    conda install nonebot-plugin-resolver
-</details>
-
-打开 nonebot2 项目根目录下的 `pyproject.toml` 文件, 在 `[tool.nonebot]` 部分追加写入
-
-    plugins = ["nonebot-plugin-resolver"]
-
-</details>
+```
+pip install --upgrade nonebot_plugin_resolver
+```
 
 ## ⚙️ 配置
 
