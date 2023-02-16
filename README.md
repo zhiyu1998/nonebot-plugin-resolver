@@ -6,7 +6,7 @@
 
 <div align="center">
 
-# nonebot-plugin-example
+# nonebot-plugin-resolver
 
 _✨ NoneBot 插件简单描述 ✨_
 
@@ -39,7 +39,7 @@ _✨ NoneBot 插件简单描述 ✨_
 <summary>使用 nb-cli 安装</summary>
 在 nonebot2 项目的根目录下打开命令行, 输入以下指令即可安装
 
-    nb plugin install nonebot-plugin-example
+    nb plugin install nonebot-plugin-resolver
 
 </details>
 
@@ -50,27 +50,27 @@ _✨ NoneBot 插件简单描述 ✨_
 <details>
 <summary>pip</summary>
 
-    pip install nonebot-plugin-example
+    pip install nonebot-plugin-resolver
 </details>
 <details>
 <summary>pdm</summary>
 
-    pdm add nonebot-plugin-example
+    pdm add nonebot-plugin-resolver
 </details>
 <details>
 <summary>poetry</summary>
 
-    poetry add nonebot-plugin-example
+    poetry add nonebot-plugin-resolver
 </details>
 <details>
 <summary>conda</summary>
 
-    conda install nonebot-plugin-example
+    conda install nonebot-plugin-resolver
 </details>
 
 打开 nonebot2 项目根目录下的 `pyproject.toml` 文件, 在 `[tool.nonebot]` 部分追加写入
 
-    plugins = ["nonebot_plugin_example"]
+    plugins = ["nonebot-plugin-resolver"]
 
 </details>
 
@@ -78,16 +78,16 @@ _✨ NoneBot 插件简单描述 ✨_
 
 在 nonebot2 项目的`.env`文件中添加下表中的必填配置
 
-| 配置项 | 必填 | 默认值 | 说明 |
-|:-----:|:----:|:----:|:----:|
-| 配置项1 | 是 | 无 | 配置说明 |
-| 配置项2 | 否 | 无 | 配置说明 |
+```
+# twitter的token和本地代理
+bearer_token = ""
+resolver_proxy = "http://127.0.0.1:7890"
+```
 
-## 🎉 使用
-### 指令表
-| 指令 | 权限 | 需要@ | 范围 | 说明 |
-|:-----:|:----:|:----:|:----:|:----:|
-| 指令1 | 主人 | 否 | 私聊 | 指令说明 |
-| 指令2 | 群员 | 是 | 群聊 | 指令说明 |
-### 效果图
-如果有效果图的话
+## 🎉 使用 & 效果图
+![help](./img/example.png)
+![help](./img/example2.png)
+![help](./img/example3.png)
+![help](./img/example4.png)
+![help](./img/example5.png)
+
