@@ -21,12 +21,9 @@ _✨ NoneBot2 解析视频链接/小程序插件 ✨_
 
 </div>
 
-这是一个 nonebot2 插件，解析视频链接/小程序插件，发送 tiktok、bilibili、twitter等可以让QQ发送响应的图片、视频 
-
-
 ## 📖 介绍
 
-这里是插件的详细介绍部分
+这是一个 nonebot2 插件，解析视频链接/小程序插件，发送 tiktok、bilibili、twitter等可以让QQ发送响应的图片、视频
 
 ## 💿 安装
 
