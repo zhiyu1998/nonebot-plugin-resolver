@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "nonebot-plugin-resolver"
+version = "1.0.2"
+description = "NoneBot2的解析视频链接/小程序插件，发送 tiktok、bilibili、twitter等可以让QQ发送响应的图片、视频"
+authors = ["zhiyu1998 <renzhiyu0416@qq.com>"]
+readme = "README.md"
+packages = [{include = "nonebot-plugin-resolver"}]
+repository = "https://github.com/zhiyu1998/nonebot_plugin_resolver"
+keywords = ["nonebot", "nonebot2", "resolver"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+aiohttp = "^3.7"
+httpx = "^0.23"
+beautifulsoup4 = "^4.11"
+lxml = "^4.9"
+tweepy = "^4.12"
+nonebot2 = "^2.0.0-beta.5"
+nonebot-adapter-onebot = "^2.0.0-beta.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
