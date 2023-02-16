@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nonebot-plugin-resolver"
-version = "1.0.8"
+version = "1.0.9"
 description = "NoneBot2的解析视频、图片链接/小程序插件，tiktok、bilibili、twitter等实时发送"
 authors = ["zhiyu1998 <renzhiyu0416@qq.com>"]
 readme = "README.md"
