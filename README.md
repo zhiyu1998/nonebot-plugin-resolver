@@ -23,8 +23,7 @@ _✨ NoneBot2 解析视频链接/小程序插件 ✨_
 
 ## 📖 介绍
 
-这是一个 nonebot2 插件，解析视频链接/小程序插件，发送 tiktok、bilibili、twitter等可以让QQ发送响应的图片、视频
-
+适用于nonebot2 解析视频链接/小程序插件，tiktok、bilibili、twitter等实时发送！
 ## 💿 安装
 
 1. 使用 nb-cli 安装，不需要手动添加入口，更新使用 pip
