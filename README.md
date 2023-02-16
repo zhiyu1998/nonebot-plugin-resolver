@@ -12,12 +12,12 @@ _✨ NoneBot2 解析视频、图片链接/小程序插件 ✨_
 
 
 <a href="./LICENSE">
-    <img src="https://img.shields.io/github/license/owner/nonebot-plugin-example.svg" alt="license">
+    <img src="https://img.shields.io/github/license/owner/nonebot-plugin-resolver.svg" alt="license">
 </a>
-<a href="https://pypi.python.org/pypi/nonebot-plugin-example">
-    <img src="https://img.shields.io/pypi/v/nonebot-plugin-example.svg" alt="pypi">
+<a href="https://pypi.org/project/nonebot-plugin-resolver">
+    <img src="https://img.shields.io/pypi/v/nonebot-plugin-resolver.svg" alt="pypi">
 </a>
-<img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="python">
+<img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="python">
 
 </div>
 
