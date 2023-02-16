@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "nonebot-plugin-resolver"
 version = "1.0.7"
-description = "NoneBot2的解析视频链接/小程序插件，发送 tiktok、bilibili、twitter等可以让QQ发送响应的图片、视频"
+description = "NoneBot2的解析视频、图片链接/小程序插件，tiktok、bilibili、twitter等实时发送"
 authors = ["zhiyu1998 <renzhiyu0416@qq.com>"]
 readme = "README.md"
 packages = [{include = "nonebot-plugin-resolver"}]

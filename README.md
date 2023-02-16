@@ -8,7 +8,7 @@
 
 # nonebot-plugin-resolver
 
-_✨ NoneBot2 解析视频链接/小程序插件 ✨_
+_✨ NoneBot2 解析视频、图片链接/小程序插件 ✨_
 
 
 <a href="./LICENSE">
@@ -23,7 +23,7 @@ _✨ NoneBot2 解析视频链接/小程序插件 ✨_
 
 ## 📖 介绍
 
-适用于nonebot2 解析视频链接/小程序插件，tiktok、bilibili、twitter等实时发送！
+适用于NoneBot2的解析视频、图片链接/小程序插件，tiktok、bilibili、twitter等实时发送！
 ## 💿 安装
 
 1. 使用 nb-cli 安装，不需要手动添加入口，更新使用 pip
