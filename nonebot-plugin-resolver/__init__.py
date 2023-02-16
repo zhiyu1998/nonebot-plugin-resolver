@@ -17,7 +17,7 @@ from .twitter_utils import TweepyWithProxy
 
 
 # 全局配置
-global_config = get_driver().config.dict()
+global_config = get_driver().config
 resolver_proxy = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
 
 # twitter 代理地址
@@ -34,7 +34,6 @@ httpx_proxies = {
 client = TweepyWithProxy(
     proxies,
     getattr(global_config, "bearer_token", ""))
-
 bili23 = on_regex(
     r"(.*)(bilibili.com|b23.tv)", priority=1
 )
