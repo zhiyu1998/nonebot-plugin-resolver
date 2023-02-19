@@ -8,7 +8,7 @@
 
 # nonebot-plugin-resolver
 
-_✨ NoneBot2 解析视频、图片链接/小程序插件 ✨_
+_✨ NoneBot2 链接分享解析器插件 ✨_
 
 
 <a href="./LICENSE">
@@ -40,7 +40,7 @@ pip install --upgrade nonebot_plugin_resolver
 
 ## ⚙️ 配置
 
-在 nonebot2 项目的`.env`文件中添加下表中的必填配置
+在 nonebot2 项目的`.env`文件中添加下表中的可选配置
 
 ```
 # twitter的token和本地代理
