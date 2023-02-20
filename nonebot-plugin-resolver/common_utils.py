@@ -3,6 +3,7 @@ import httpx
 import random
 import os
 import re
+import asyncio
 
 # twitter 代理地址
 proxies = {

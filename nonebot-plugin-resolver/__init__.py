@@ -11,10 +11,9 @@ from nonebot.adapters.onebot.v11 import Message, Event
 
 from .common_utils import *
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
-from .tiktok_utills import get_id_video
+from .tiktok_utills import get_id_video, get_douyin_json
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .twitter_utils import TweepyWithProxy
-
 
 # 全局配置
 global_config = get_driver().config
@@ -37,6 +36,8 @@ client = TweepyWithProxy(
 bili23 = on_regex(
     r"(.*)(bilibili.com|b23.tv)", priority=1
 )
+
+
 @bili23.handle()
 async def bilibili(event: Event) -> None:
     """
@@ -108,6 +109,7 @@ async def bilibili(event: Event) -> None:
     os.unlink(f"{path}-res.mp4")
     os.unlink(f"{path}-res.mp4.jpg")
 
+
 """以下为抖音/TikTok类型代码/Type code for Douyin/TikTok"""
 url_type_code_dict = {
     # 抖音/Douyin
@@ -126,6 +128,8 @@ url_type_code_dict = {
 douyin = on_regex(
     r"(.*)(v.douyin.com)", priority=1
 )
+
+
 @douyin.handle()
 async def dy(event: Event) -> None:
     """
@@ -133,8 +137,6 @@ async def dy(event: Event) -> None:
     :param event:
     :return:
     """
-    header = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36'}
     # 消息
     msg: str = str(event.message).strip()
     # 正则匹配
@@ -144,12 +146,12 @@ async def dy(event: Event) -> None:
     reg2 = r".*video\/(\d+)\/(.*?)"
     # 获取到ID
     dou_id = re.search(reg2, dou_url_2, re.I)[1]
-    # 请求抖音API
-    url = f'https://www.iesdouyin.com/aweme/v1/web/aweme/detail/?aweme_id={dou_id}&aid=1128&version_name=23.5.0&device_platform=android&os_version=2333'
-    # print(url)
-    resp = httpx.get(url, headers=header).text
-    # print(resp)
-    detail = json.loads(resp)['aweme_detail']
+    # print(dou_id)
+    # 请求抖音
+    detail = get_douyin_json(dou_id)
+    if detail is None:
+        await douyin.send(Message(f"R助手极速版识别：抖音，解析失败！"))
+        return
     # 判断是图片还是视频
     url_type_code = detail['aweme_type']
     url_type = url_type_code_dict.get(url_type_code, 'video')
@@ -171,15 +173,19 @@ async def dy(event: Event) -> None:
         # 遍历图片列表/Traverse image list
         for i in detail['images']:
             # 无水印图片列表
-            no_watermark_image_list.append(i['url_list'][0])
+            # no_watermark_image_list.append(i['url_list'][0])
             # 有水印图片列表
-            # watermark_image_list.append(i['download_url_list'][0])
+            watermark_image_list.append(i['download_url_list'][0])
         # 异步发送
-        await asyncio.gather(*[douyin.send(Message(f"[CQ:image,file={path}]")) for path in no_watermark_image_list])
+        await asyncio.gather(
+            *[douyin.send(Message(f"[CQ:image,file={path}]")) for path in no_watermark_image_list])
+
 
 tik = on_regex(
     r"(.*)(www.tiktok.com)|(vt.tiktok.com)|(vm.tiktok.com)", priority=1
 )
+
+
 @tik.handle()
 async def tiktok(event: Event) -> None:
     """
@@ -200,7 +206,8 @@ async def tiktok(event: Event) -> None:
         url = temp_resp.url
     elif "vm.tiktok" in url:
         temp_url = re.search(url_short_reg2, url)[0]
-        temp_resp = httpx.get(temp_url, headers={"User-Agent": "facebookexternalhit/1.1"}, follow_redirects=True, proxies=httpx_proxies)
+        temp_resp = httpx.get(temp_url, headers={"User-Agent": "facebookexternalhit/1.1"}, follow_redirects=True,
+                              proxies=httpx_proxies)
         url = str(temp_resp.url)
         # print(url)
     else:
@@ -208,7 +215,7 @@ async def tiktok(event: Event) -> None:
     # strip是防止vm开头的tiktok解析出问题
     id_video = get_id_video(url).strip("/")
     print(id_video)
-    API_URL = f'https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id={ id_video }&version_code=262&app_name=musical_ly&channel=App&device_id=null&os_version=14.4.2&device_platform=iphone&device_type=iPhone13'
+    API_URL = f'https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id={id_video}&version_code=262&app_name=musical_ly&channel=App&device_id=null&os_version=14.4.2&device_platform=iphone&device_type=iPhone13'
 
     api_resp = httpx.get(API_URL, headers={
         "User-Agent": "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.25 Mobile Safari/537.36",
@@ -217,9 +224,14 @@ async def tiktok(event: Event) -> None:
     await tik.send(Message(f"R助手极速版识别：tiktok, {data['desc']}"))
     path = await download_video_random(data['video']['play_addr']['url_list'][0])
     await tik.send(Message(f"[CQ:video,file=file:///{path}]"))
+    # 清除文件
     os.unlink(f"{path}")
+    os.unlink(f"{path}.jpg")
+
 
 acfun = on_regex(r"(.*)(acfun.cn)")
+
+
 @acfun.handle()
 async def ac(event: Event) -> None:
     """
@@ -242,12 +254,14 @@ async def ac(event: Event) -> None:
     merge_ac_file_to_mp4(ts_names, output_file_name)
     await acfun.send(Message(f"[CQ:video,file=file:///{os.getcwd()}/{output_file_name}]"))
     os.unlink(output_file_name)
-    os.unlink(output_file_name+".jpg")
+    os.unlink(output_file_name + ".jpg")
 
 
 twit = on_regex(
     r"(.*)(twitter.com)", priority=1
 )
+
+
 @twit.handle()
 async def twitter(event: Event):
     """
@@ -291,9 +305,12 @@ async def twitter(event: Event):
     # 发送异步后的数据
     await asyncio.gather(*[how_to_send_msg(task) for task in aio_task_res])
 
+
 xhs = on_regex(
     r"(.*)(xhslink.com|xiaohongshu.com)", priority=1
 )
+
+
 @xhs.handle()
 async def redbook(event: Event):
     """
@@ -301,24 +318,26 @@ async def redbook(event: Event):
     :param event:
     :return:
     """
-    msgUrl = re.search(r"(http:|https:)\/\/(xhslink|xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*", str(event.message).strip())
+    msgUrl = re.search(r"(http:|https:)\/\/(xhslink|xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
+                       str(event.message).strip())
     url = f"https://dlpanda.com/zh-CN/xhs?url={msgUrl}"
 
     resp = httpx.get(url, headers={
-                "User-Agent":
-                    "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.25 Mobile Safari/537.36",
-                "Content-Type": "application/json",
-                "Accept-Encoding": "gzip,deflate,compress"
+        "User-Agent":
+            "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.25 Mobile Safari/537.36",
+        "Content-Type": "application/json",
+        "Accept-Encoding": "gzip,deflate,compress"
     })
     soup = BeautifulSoup(resp.text, 'lxml')
-    urls = soup.findAll("img", attrs={"style":"max-width: none; max-height: none;"})
+    urls = soup.findAll("img", attrs={"style": "max-width: none; max-height: none;"})
     title = soup.findAll("h5")
     desc = soup.findAll("p")
     # print(title)
     # print(desc[2])
     # urls: list[str] = re.findall(r'<img(.*)src="\/\/ci\.xiaohongshu\.com(.*?)"', resp.text)
     # title_desc = re.findall(r'<a href="https:\/\/www\.xiaohongshu\.com\/discovery\/item\/(.*)<\/p>', resp.text)
-    await xhs.send(Message(f"R助手极速版识别：小红书，{''.join([str(tit.string) for tit in title[:2]])}" + "\n" + f"{str(desc[2].string)}"))
+    await xhs.send(Message(
+        f"R助手极速版识别：小红书，{''.join([str(tit.string) for tit in title[:2]])}" + "\n" + f"{str(desc[2].string)}"))
 
     aio_task = []
     for u in urls:

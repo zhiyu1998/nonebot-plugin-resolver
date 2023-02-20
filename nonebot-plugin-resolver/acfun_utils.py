@@ -31,7 +31,9 @@ def parse_url(url: str):
     ks_play_json = video_info['currentVideoInfo']['ksPlayJson']
     ks_play = json.loads(ks_play_json)
     representations = ks_play['adaptationSet'][0]['representation']
-    url_m3u8s = [d['url'] for d in representations][0]
+    # 这里[d['url'] for d in representations]，从4k~360，此处默认720p
+    url_m3u8s = [d['url'] for d in representations][3]
+    # print([d['url'] for d in representations])
     return url_m3u8s, video_name
 
 
