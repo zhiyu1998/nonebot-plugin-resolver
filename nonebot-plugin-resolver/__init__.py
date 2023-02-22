@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import os
 import re
 
@@ -6,8 +7,10 @@ import httpx
 import json
 
 from bs4 import BeautifulSoup
+
 from nonebot import on_regex, get_driver
-from nonebot.adapters.onebot.v11 import Message, Event
+from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment
+from nonebot.adapters.onebot.v11.event import GroupMessageEvent
 
 from .common_utils import *
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
@@ -37,6 +40,7 @@ bili23 = on_regex(
     r"(.*)(bilibili.com|b23.tv)", priority=1
 )
 
+GLOBAL_NICKNAME = "resolver"
 
 @bili23.handle()
 async def bilibili(event: Event) -> None:
@@ -131,7 +135,7 @@ douyin = on_regex(
 
 
 @douyin.handle()
-async def dy(event: Event) -> None:
+async def dy(bot: Bot, event: Event) -> None:
     """
         抖音解析
     :param event:
@@ -174,11 +178,19 @@ async def dy(event: Event) -> None:
         for i in detail['images']:
             # 无水印图片列表
             # no_watermark_image_list.append(i['url_list'][0])
+            no_watermark_image_list.append(
+                MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
+                                           content=Message(f"[CQ:image,file={i['url_list'][0]}]"))
+            )
             # 有水印图片列表
-            watermark_image_list.append(i['download_url_list'][0])
+            # watermark_image_list.append(i['download_url_list'][0])
         # 异步发送
-        await asyncio.gather(
-            *[douyin.send(Message(f"[CQ:image,file={path}]")) for path in no_watermark_image_list])
+        # print(no_watermark_image_list)
+        # imgList = await asyncio.gather([])
+        if isinstance(event, GroupMessageEvent):
+            await bot.send_group_forward_msg(group_id=event.group_id, messages=no_watermark_image_list)
+        else:
+            await bot.send_private_forward_msg(user_id=event.user_id, messages=no_watermark_image_list)
 
 
 tik = on_regex(
@@ -263,7 +275,7 @@ twit = on_regex(
 
 
 @twit.handle()
-async def twitter(event: Event):
+async def twitter(bot:Bot, event: Event):
     """
         推特解析
     :param event:
@@ -280,7 +292,7 @@ async def twitter(event: Event):
                                  'entities.mentions.username',
                                  'attachments.media_keys',
                              ])
-    await twit.send(Message(f"R助手极速版识别：忒特学习版，{tweet.data.text}"))
+    await twit.send(Message(f"R助手极速版识别：小蓝鸟学习版，{tweet.data.text}"))
     # print(tweet)
     # 主要内容
     tweet_json = tweet.includes
@@ -301,9 +313,18 @@ async def twitter(event: Event):
             # print(path)
             # await twit.send(Message(f"[CQ:video,file=file:///{path}]"))
             # os.unlink(f"{path}")
-    aio_task_res: tuple[str] = await asyncio.gather(*aio_task)
+    path_res = await asyncio.gather(*aio_task)
+    aio_task_res = [how_to_send_msg(int(bot.self_id), path) for path in path_res]
+
     # 发送异步后的数据
-    await asyncio.gather(*[how_to_send_msg(task) for task in aio_task_res])
+    if isinstance(event, GroupMessageEvent):
+        await bot.send_group_forward_msg(group_id=event.group_id, messages=aio_task_res)
+    else:
+        await bot.send_private_forward_msg(user_id=event.user_id, messages=aio_task_res)
+
+    # 清除垃圾
+    for path in path_res:
+        os.unlink(path)
 
 
 xhs = on_regex(
@@ -312,7 +333,7 @@ xhs = on_regex(
 
 
 @xhs.handle()
-async def redbook(event: Event):
+async def redbook(bot:Bot, event: Event):
     """
         小红书解析
     :param event:
@@ -344,23 +365,31 @@ async def redbook(event: Event):
         # print(u.get("src"))
         link = f'https:{u.get("src")}'
         aio_task.append(download_img(link, os.getcwd() + "/" + re.search(r"com\/(.*)\?", link)[1] + ".jpg"))
-    links: tuple[str] = await asyncio.gather(*aio_task)
+    links_path: tuple[str] = await asyncio.gather(*aio_task)
     # 发送图片
-    await asyncio.gather(*[xhs.send(Message(f"[CQ:image,file=file:///{link}]")) for link in links])
+    links = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
+                                           content=Message(MessageSegment.image(f"file:///{link}"))) for link in links_path]
+    # 发送异步后的数据
+    if isinstance(event, GroupMessageEvent):
+        await bot.send_group_forward_msg(group_id=event.group_id, messages=links)
+    else:
+        await bot.send_private_forward_msg(user_id=event.user_id, messages=links)
     # 清除图片
-    for temp in links:
+    for temp in links_path:
         os.unlink(temp)
 
 
-async def how_to_send_msg(task: str):
+def how_to_send_msg(user_id:int, task: str):
     """
         判断是视频还是图片然后发送最后删除
+    :param user_id:
     :param task:
     :return:
     """
-    if task.endswith("jpg" or "png"):
-        await twit.send(Message(f"[CQ:image,file=file:///{task}]"))
+    if task.endswith("jpg") or task.endswith("png"):
+        print(f"file:///{task}]")
+        return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
+                                   content=Message(MessageSegment.image(f"file:///{task}")))
     elif task.endswith("mp4"):
-        await twit.send(Message(f"[CQ:video,file=file:///{task}]"))
-    # print(f"{os.getcwd()}/{task}")
-    os.unlink(f"{task}")
+        return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
+                                          content=Message(MessageSegment.video(f"file:///{task}")))
