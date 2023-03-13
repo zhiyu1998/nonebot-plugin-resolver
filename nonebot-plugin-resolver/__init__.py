@@ -14,7 +14,7 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent
 
 from .common_utils import *
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
-from .tiktok_utills import get_id_video, get_douyin_json
+from .tiktok_utills import get_id_video, generate_ttwid, getXbogus
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .twitter_utils import TweepyWithProxy
 
@@ -151,11 +151,25 @@ async def dy(bot: Bot, event: Event) -> None:
     # 获取到ID
     dou_id = re.search(reg2, dou_url_2, re.I)[1]
     # print(dou_id)
-    # 请求抖音
-    detail = get_douyin_json(dou_id)
+    # 一些后续要用到的参数
+    odin_tt = 'a09d8eb0d95b7b9adb4b6fc6591918bfb996096967a7aa4305bd81b5150a8199d2e29ed21883cdd7709c5beaa2be3baa'
+    headers = {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
+        'referer': 'https://www.douyin.com/',
+        'Cookie': f'ttwid=ttwid={generate_ttwid()};{odin_tt}'
+    }
+    # API
+    DY_API = 'https://www.douyin.com/aweme/v1/web/aweme/detail/?'
+    # 参数
+    params = f'aweme_id={dou_id}&aid=1128&version_name=23.5.0&device_platform=android&os_version=2333'
+    # 请求API
+    detail = httpx.get(f'{DY_API}{getXbogus(params)[0]}', headers=headers).json()
+    # 如果请求失败直接返回
     if detail is None:
         await douyin.send(Message(f"R助手极速版识别：抖音，解析失败！"))
         return
+    # 获取信息
+    detail = detail['aweme_detail']
     # 判断是图片还是视频
     url_type_code = detail['aweme_type']
     url_type = url_type_code_dict.get(url_type_code, 'video')
@@ -166,9 +180,10 @@ async def dy(bot: Bot, event: Event) -> None:
         player_addr = detail.get("video").get("play_addr").get("url_list")[0]
         # 发送视频
         # id = str(event.get_user_id())
-        cqs = f"[CQ:video,file={player_addr}]"
+        # cqs = f"[CQ:video,file={player_addr}]"
         # await douyin.send(MessageSegment.at(id)+Message(cqs))
-        await douyin.send(Message(cqs))
+        print(player_addr)
+        await douyin.send(Message(MessageSegment.video(player_addr)))
     elif url_type == 'image':
         # 无水印图片列表/No watermark image list
         no_watermark_image_list = []

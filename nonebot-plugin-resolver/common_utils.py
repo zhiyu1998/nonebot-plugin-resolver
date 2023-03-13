@@ -3,7 +3,6 @@ import httpx
 import random
 import os
 import re
-import time
 
 # twitter 代理地址
 proxies = {
@@ -17,7 +16,7 @@ httpx_proxies = {
     "https://": "http://127.0.0.1:7890",
 }
 header = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36'}
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (HTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36'}
 
 
 async def download_video_random(url):
