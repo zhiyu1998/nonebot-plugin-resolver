@@ -29,13 +29,13 @@ _✨ NoneBot2 链接分享解析器插件 ✨_
 1. 使用 nb-cli 安装，不需要手动添加入口，更新使用 pip
 
 ```
-nb plugin install nonebot_plugin_resolver
+nb plugin install nonebot-plugin-resolver
 ```
 
 2. 使用 pip 安装和更新，初次安装需要手动添加入口
 
 ```
-pip install --upgrade nonebot_plugin_resolver
+pip install --upgrade nonebot-plugin-resolver
 ```
 
 ## ⚙️ 配置
