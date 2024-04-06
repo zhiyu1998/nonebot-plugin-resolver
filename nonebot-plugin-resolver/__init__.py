@@ -2,21 +2,32 @@ import asyncio
 import json
 
 from nonebot import on_regex, get_driver, logger
+from nonebot.plugin import PluginMetadata
 from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment
 from nonebot.adapters.onebot.v11.event import GroupMessageEvent
 
 from .common_utils import *
+from .config import Config
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
 from .tiktok_utills import get_id_video, generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .constants import URL_TYPE_CODE_DICT, BASE_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK
 
-# 全局配置
-global_config = get_driver().config
+__plugin_meta__ = PluginMetadata(
+    name="链接分享解析器",
+    description="NoneBot2链接分享解析器插件。解析视频、图片链接/小程序插件，tiktok、bilibili、twitter等实时发送！",
+    usage="分享链接即可体验到效果",
+    type="application",
+    homepage="https://github.com/zhiyu1998/nonebot-plugin-resolver",
+    config=Config,
+)
+
+# 配置加载
+global_config = Config.parse_obj(get_driver().config.dict())
 resolver_proxy = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
 IS_OVERSEA: bool = getattr(global_config, "is_oversea", False)
 
-# 代理地址
+# 代理加载
 aiohttp_proxies = {
     'http': resolver_proxy,
     'https': resolver_proxy
@@ -139,6 +150,8 @@ async def dy(bot: Bot, event: Event) -> None:
     # 如果没有设置dy的ck就结束，因为获取不到
     douyin_ck = getattr(global_config, "douyin_ck", "")
     if douyin_ck == "":
+        logger.error(global_config)
+        await douyin.send(Message(f"R助手极速版识别：抖音，无法获取到管理员设置的抖音ck！"))
         return
     # API、一些后续要用到的参数
     headers = {

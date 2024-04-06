@@ -55,7 +55,7 @@ def generate_x_bogus_url(url, headers):
     # 调用JavaScript函数
     query = urllib.parse.urlparse(url).query
     xbogus = execjs.compile(open(f'{os.path.dirname(os.path.abspath(__file__))}/x-bogus.js').read()).call('sign', query, headers['User-Agent'])
-    logger.info('生成的X-Bogus签名为: {}'.format(xbogus))
+    # logger.info('生成的X-Bogus签名为: {}'.format(xbogus))
     return url + "&X-Bogus=" + xbogus
 
 def generate_random_str(self, randomlength=16):
