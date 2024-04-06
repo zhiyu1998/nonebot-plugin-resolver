@@ -5,7 +5,7 @@ description = "NoneBot2链接分享解析器插件。解析视频、图片链接
 authors = ["zhiyu1998 <renzhiyu0416@qq.com>"]
 readme = "README.md"
 packages = [{include = "nonebot-plugin-resolver"}]
-repository = "https://github.com/zhiyu1998/nonebot_plugin_resolver"
+repository = "https://github.com/zhiyu1998/nonebot-plugin-resolver"
 keywords = ["nonebot", "nonebot2", "resolver"]
 
 [tool.poetry.dependencies]
