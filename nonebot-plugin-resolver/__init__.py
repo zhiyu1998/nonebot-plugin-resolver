@@ -7,16 +7,17 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent
 
 from .common_utils import *
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
-from .tiktok_utills import get_id_video, generate_x_bogus_url, generate_random_str
+from .tiktok_utills import get_id_video, generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
-from .twitter_utils import TweepyWithProxy
+from .constants import URL_TYPE_CODE_DICT, BASE_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK
 
 # 全局配置
 global_config = get_driver().config
 resolver_proxy = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
+IS_OVERSEA: bool = getattr(global_config, "is_oversea", False)
 
-# twitter 代理地址
-proxies = {
+# 代理地址
+aiohttp_proxies = {
     'http': resolver_proxy,
     'https': resolver_proxy
 }
@@ -25,15 +26,25 @@ httpx_proxies = {
     "https://": resolver_proxy,
 }
 
-# Twitter token
-client = TweepyWithProxy(
-    proxies,
-    getattr(global_config, "bearer_token", ""))
 bili23 = on_regex(
     r"(.*)(bilibili.com|b23.tv)", priority=1
 )
+douyin = on_regex(
+    r"(.*)(v.douyin.com)", priority=1
+)
+tik = on_regex(
+    r"(.*)(www.tiktok.com)|(vt.tiktok.com)|(vm.tiktok.com)", priority=1
+)
+acfun = on_regex(r"(.*)(acfun.cn)")
+twit = on_regex(
+    r"(.*)(x.com)", priority=1
+)
+xhs = on_regex(
+    r"(.*)(xhslink.com|xiaohongshu.com)", priority=1
+)
 
-GLOBAL_NICKNAME = "resolver"
+GLOBAL_NICKNAME = "R助手极速版"
+
 
 @bili23.handle()
 async def bilibili(event: Event) -> None:
@@ -78,13 +89,14 @@ async def bilibili(event: Event) -> None:
         return
 
     # 获取视频信息
-    base_video_info = "http://api.bilibili.com/x/web-interface/view"
+    # logger.error(url)
     video_id = re.search(r"video\/[^\?\/ ]+", url)[0].split('/')[1]
-    # logger.info(video_id)
+    # logger.error(video_id)
     video_title = httpx.get(
-        f"{base_video_info}?bvid={video_id}" if video_id.startswith(
-            "BV") else f"{base_video_info}?aid={video_id}").json()[
-        'data']['title']
+        f"{BASE_VIDEO_INFO}?bvid={video_id}" if video_id.startswith(
+            "BV") else f"{BASE_VIDEO_INFO}?aid={video_id}", headers=header)
+    # logger.info(video_title)
+    video_title = video_title.json()['data']['title']
     video_title = delete_boring_characters(video_title)
     # video_title = re.sub(r'[\\/:*?"<>|]', "", video_title)
     await bili23.send(Message(f"R助手极速版识别：B站，{video_title}"))
@@ -99,32 +111,12 @@ async def bilibili(event: Event) -> None:
     # logger.info(os.getcwd())
     # 发送出去
     # logger.info(path)
-    cqs = f"[CQ:video,file=file:///{path}-res.mp4]"
-    await bili23.send(Message(cqs))
+    await douyin.send(Message(MessageSegment.video(f"{path}-res.mp4")))
     # logger.info(f'{path}-res.mp4')
     # 清理文件
     os.unlink(f"{path}-res.mp4")
-    os.unlink(f"{path}-res.mp4.jpg")
-
-
-"""以下为抖音/TikTok类型代码/Type code for Douyin/TikTok"""
-url_type_code_dict = {
-    # 抖音/Douyin
-    2: 'image',
-    4: 'video',
-    68: 'image',
-    # TikTok
-    0: 'video',
-    51: 'video',
-    55: 'video',
-    58: 'video',
-    61: 'video',
-    150: 'image'
-}
-
-douyin = on_regex(
-    r"(.*)(v.douyin.com)", priority=1
-)
+    if os.path.exists(f"{path}-res.mp4.jpg"):
+        os.unlink(f"{path}-res.mp4.jpg")
 
 
 @douyin.handle()
@@ -144,16 +136,19 @@ async def dy(bot: Bot, event: Event) -> None:
     # 获取到ID
     dou_id = re.search(reg2, dou_url_2, re.I)[1]
     # logger.info(dou_id)
-    # 一些后续要用到的参数
+    # 如果没有设置dy的ck就结束，因为获取不到
+    douyin_ck = getattr(global_config, "douyin_ck", "")
+    if douyin_ck == "":
+        return
+    # API、一些后续要用到的参数
     headers = {
-            'accept-encoding': 'gzip, deflate, br',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
-            'referer': 'https://www.douyin.com/',
-            'cookie': "s_v_web_id=verify_leytkxgn_kvO5kOmO_SdMs_4t1o_B5ml_BUqtWM1mP6BF;"
+        'accept-encoding': 'gzip, deflate, br',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+        'referer': f'https://www.douyin.com/video/{dou_id}',
+        'cookie': douyin_ck
     }
-    # API
-    api_url = f"https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp&aid=6383&channel=channel_pc_web&aweme_id={dou_id}&pc_client_type=1&version_code=190500&version_name=19.5.0&cookie_enabled=true&screen_width=1344&screen_height=756&browser_language=zh-CN&browser_platform=Win32&browser_name=Firefox&browser_version=110.0&browser_online=true&engine_name=Gecko&engine_version=109.0&os_name=Windows&os_version=10&cpu_core_num=16&device_memory=&platform=PC&webid=7158288523463362079&msToken=abL8SeUTPa9-EToD8qfC7toScSADxpg6yLh2dbNcpWHzE0bT04txM_4UwquIcRvkRb9IU8sifwgM1Kwf1Lsld81o9Irt2_yNyUbbQPSUO8EfVlZJ_78FckDFnwVBVUVK"
-    api_url = generate_x_bogus_url(api_url, headers)# 如果请求失败直接返回
+    api_url = DOUYIN_VIDEO.replace("{}", dou_id)
+    api_url = generate_x_bogus_url(api_url, headers)  # 如果请求失败直接返回
     async with aiohttp.ClientSession() as session:
         async with session.get(api_url, headers=headers, timeout=10) as response:
             detail = await response.json()
@@ -164,17 +159,14 @@ async def dy(bot: Bot, event: Event) -> None:
             detail = detail['aweme_detail']
             # 判断是图片还是视频
             url_type_code = detail['aweme_type']
-            url_type = url_type_code_dict.get(url_type_code, 'video')
+            url_type = URL_TYPE_CODE_DICT.get(url_type_code, 'video')
             await douyin.send(Message(f"R助手极速版识别：抖音，{detail.get('desc')}"))
             # 根据类型进行发送
             if url_type == 'video':
                 # 识别播放地址
                 player_addr = detail.get("video").get("play_addr").get("url_list")[0]
                 # 发送视频
-                # id = str(event.get_user_id())
-                # cqs = f"[CQ:video,file={player_addr}]"
-                # await douyin.send(MessageSegment.at(id)+Message(cqs))
-                logger.info(player_addr)
+                # logger.info(player_addr)
                 await douyin.send(Message(MessageSegment.video(player_addr)))
             elif url_type == 'image':
                 # 无水印图片列表/No watermark image list
@@ -187,7 +179,7 @@ async def dy(bot: Bot, event: Event) -> None:
                     # no_watermark_image_list.append(i['url_list'][0])
                     no_watermark_image_list.append(
                         MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                                   content=Message(f"[CQ:image,file={i['url_list'][0]}]"))
+                                                   content=Message(MessageSegment.image(i['url_list'][0])))
                     )
                     # 有水印图片列表
                     # watermark_image_list.append(i['download_url_list'][0])
@@ -200,11 +192,6 @@ async def dy(bot: Bot, event: Event) -> None:
                     await bot.send_private_forward_msg(user_id=event.user_id, messages=no_watermark_image_list)
 
 
-tik = on_regex(
-    r"(.*)(www.tiktok.com)|(vt.tiktok.com)|(vm.tiktok.com)", priority=1
-)
-
-
 @tik.handle()
 async def tiktok(event: Event) -> None:
     """
@@ -214,6 +201,10 @@ async def tiktok(event: Event) -> None:
     """
     # 消息
     url: str = str(event.message).strip()
+
+    # 海外服务器判断
+    proxy = None if IS_OVERSEA else httpx_proxies
+    # logger.info(proxy)
 
     url_reg = r"(http:|https:)\/\/www.tiktok.com\/[A-Za-z\d._?%&+\-=\/#@]*"
     url_short_reg = r"(http:|https:)\/\/vt.tiktok.com\/[A-Za-z\d._?%&+\-=\/#]*"
@@ -234,21 +225,31 @@ async def tiktok(event: Event) -> None:
     # strip是防止vm开头的tiktok解析出问题
     id_video = get_id_video(url).strip("/")
     logger.info(id_video)
-    API_URL = f'https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id={id_video}&version_code=262&app_name=musical_ly&channel=App&device_id=null&os_version=14.4.2&device_platform=iphone&device_type=iPhone13'
 
-    api_resp = httpx.get(API_URL, headers={
-        "User-Agent": "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.25 Mobile Safari/537.36",
-        "Content-Type": "application/json", "Accept-Encoding": "gzip,deflate,compress"}, proxies=httpx_proxies).json()
-    data = api_resp['aweme_list'][0]
-    await tik.send(Message(f"R助手极速版识别：tiktok, {data['desc']}"))
-    path = await download_video_random(data['video']['play_addr']['url_list'][0])
-    await tik.send(Message(f"[CQ:video,file=file:///{path}]"))
-    # 清除文件
-    os.unlink(f"{path}")
-    os.unlink(f"{path}.jpg")
+    params = {
+        "iid": "7318518857994389254",
+        "device_id": "7318517321748022790",
+        "channel": "googleplay",
+        "app_name": "musical_ly",
+        "version_code": "300904",
+        "device_platform": "android",
+        "device_type": "ASUS_Z01QD",
+        "os_version": "9",
+        "aweme_id": id_video
+    }
 
-
-acfun = on_regex(r"(.*)(acfun.cn)")
+    async with httpx.AsyncClient() as client:
+        response = await client.get(TIKTOK_VIDEO, params=params, headers={
+        "User-Agent":
+                    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
+    }, timeout=10)
+        data = response.json()['aweme_list'][0]
+        await tik.send(Message(f"R助手极速版识别：tiktok, {data['desc']}"))
+        path = await download_video(data['video']['play_addr']['url_list'][0], proxy)
+        await tik.send(Message(MessageSegment.video(path)))
+        # 清除文件
+        os.unlink(f"{path}")
+        os.unlink(f"{path}.jpg")
 
 
 @acfun.handle()
@@ -271,57 +272,44 @@ async def ac(event: Event) -> None:
     # logger.info(output_folder_name, output_file_name)
     await asyncio.gather(*[download_m3u8_videos(url, i) for i, url in enumerate(m3u8_full_urls)])
     merge_ac_file_to_mp4(ts_names, output_file_name)
-    await acfun.send(Message(f"[CQ:video,file=file:///{os.getcwd()}/{output_file_name}]"))
+    await acfun.send(Message(MessageSegment.video(f"{os.getcwd()}/{output_file_name}")))
     os.unlink(output_file_name)
     os.unlink(output_file_name + ".jpg")
 
 
-twit = on_regex(
-    r"(.*)(twitter.com)", priority=1
-)
-
-
 @twit.handle()
-async def twitter(bot:Bot, event: Event):
+async def twitter(bot: Bot, event: Event):
     """
         推特解析
     :param event:
     :return:
     """
     msg: str = str(event.message).strip()
-    reg = r"https?:\/\/twitter.com\/[0-9-a-zA-Z_]{1,20}\/status\/([0-9]*)"
-    id = re.search(reg, msg)[1]
+    x_url = re.search(r"https?:\/\/x.com\/[0-9-a-zA-Z_]{1,20}\/status\/([0-9]*)", msg)[0]
 
-    tweet = client.get_tweet(id=id,
-                             media_fields="duration_ms,height,media_key,preview_image_url,public_metrics,type,url,width,alt_text,variants".split(
-                                 ","),
-                             expansions=[
-                                 'entities.mentions.username',
-                                 'attachments.media_keys',
-                             ])
-    await twit.send(Message(f"R助手极速版识别：小蓝鸟学习版，{tweet.data.text}"))
-    # logger.info(tweet)
+    logger.debug(GENERAL_REQ_LINK.replace("{}", x_url))
+    x_resp = httpx.get(GENERAL_REQ_LINK.replace("{}", x_url), headers={
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'zh-CN,zh;q=0.9', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive',
+        'Pragma': 'no-cache', 'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1', 'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36', })
+    x_url: str = x_resp.json()['data']['url']
+    logger.info(x_url)
+
+    await twit.send(Message(f"R助手极速版识别：小蓝鸟学习版"))
     # 主要内容
-    tweet_json = tweet.includes
     aio_task = []
-    # 逐个判断是照片还是视频
-    # logger.info(tweet_json)
-    for tweet_single in tweet_json['media']:
-        # 图片
-        if tweet_single['type'] == "photo":
-            # logger.info(tweet_single.url)
-            aio_task.append(download_img_with_proxy(tweet_single.url))
-            # await twit.send(Message(f"[CQ:image,file=file:///{path}]"))
-            # os.unlink(f"{path}")
+
+    # 图片
+    if x_url.endswith(".jpg") or x_url.endswith(".png"):
+        # logger.info(tweet_single.url)
+        aio_task.append(download_img(x_url))
+    else:
         # 视频
-        elif tweet_single['type'] == "video":
-            # logger.info(tweet_single['variants'][0]['url'])
-            aio_task.append(download_video_with_proxy(tweet_single['variants'][0]['url']))
-            # logger.info(path)
-            # await twit.send(Message(f"[CQ:video,file=file:///{path}]"))
-            # os.unlink(f"{path}")
+        aio_task.append(download_video(x_url))
     path_res = await asyncio.gather(*aio_task)
-    aio_task_res = [how_to_send_msg(int(bot.self_id), path) for path in path_res]
+    aio_task_res = [auto_determine_send_type(int(bot.self_id), path) for path in path_res]
 
     # 发送异步后的数据
     if isinstance(event, GroupMessageEvent):
@@ -334,20 +322,15 @@ async def twitter(bot:Bot, event: Event):
         os.unlink(path)
 
 
-xhs = on_regex(
-    r"(.*)(xhslink.com|xiaohongshu.com)", priority=1
-)
-
-
 @xhs.handle()
-async def redbook(bot:Bot, event: Event):
+async def redbook(bot: Bot, event: Event):
     """
         小红书解析
     :param event:
     :return:
     """
-    msg_url = re.search(r"(http:|https:)\/\/(xhslink|xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
-                       str(event.message).strip())[0]
+    msg_url = re.search(r"(http:|https:)\/\/www\.xiaohongshu\.com\/explore\/(\w+)",
+                        str(event.message).strip())[0]
     # 请求头
     headers = {
         "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1 Edg/110.0.0.0",
@@ -379,15 +362,15 @@ async def redbook(bot:Bot, event: Event):
             aio_task.append(download_img(image_url, f'{os.getcwd()}/{str(i)}.jpg'))
     elif type == 'video':
         video_url = note_data['video']['url']
-        path = await download_video_random(video_url)
-        await tik.send(Message(f"[CQ:video,file=file:///{path}]"))
+        path = await download_video(video_url)
+        await tik.send(Message(MessageSegment.video(path)))
         os.unlink(path)
         return
     # 批量下载
     links_path = await asyncio.gather(*aio_task)
     # 发送图片
     links = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                           content=Message(MessageSegment.image(f"file:///{link}"))) for link in links_path]
+                                        content=Message(MessageSegment.image(link))) for link in links_path]
     # 发送异步后的数据
     if isinstance(event, GroupMessageEvent):
         await bot.send_group_forward_msg(group_id=event.group_id, messages=links)
@@ -398,7 +381,7 @@ async def redbook(bot:Bot, event: Event):
         os.unlink(temp)
 
 
-def how_to_send_msg(user_id:int, task: str):
+def auto_determine_send_type(user_id: int, task: str):
     """
         判断是视频还是图片然后发送最后删除
     :param user_id:
@@ -406,9 +389,8 @@ def how_to_send_msg(user_id:int, task: str):
     :return:
     """
     if task.endswith("jpg") or task.endswith("png"):
-        logger.info(f"file:///{task}]")
         return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
-                                   content=Message(MessageSegment.image(f"file:///{task}")))
+                                          content=Message(MessageSegment.image(task)))
     elif task.endswith("mp4"):
         return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
-                                          content=Message(MessageSegment.video(f"file:///{task}")))
+                                          content=Message(MessageSegment.video(task)))

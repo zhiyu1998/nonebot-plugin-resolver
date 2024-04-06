@@ -43,9 +43,9 @@ pip install --upgrade nonebot-plugin-resolver
 在 nonebot2 项目的`.env`文件中添加下表中的可选配置
 
 ```
-# twitter的token和本地代理
-bearer_token = ""
-resolver_proxy = "http://127.0.0.1:7890"
+DOUYIN_CK='' # douyin's cookie, 格式：odin_tt=xxx;sessionid_ss=xxx;ttwid=xxx;passport_csrf_token=xxx;msToken=xxx;
+IS_OVERSEA=False # 是否是海外服务器部署
+resolver_proxy = "http://127.0.0.1:7890" # 代理
 ```
 
 ## 🎉 使用 & 效果图
