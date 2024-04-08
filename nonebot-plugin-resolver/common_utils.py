@@ -30,7 +30,7 @@ async def download_video(url, proxy: str = None):
     return path
 
 
-async def download_img(url: str, path: str = '', proxy: str = None) -> str:
+async def download_img(url: str, path: str = '', proxy: str = None, session = None) -> str:
     """
     异步下载（aiohttp）网络图片，并支持通过代理下载。
     如果未指定path，则图片将保存在当前工作目录并以图片的文件名命名。
@@ -43,8 +43,16 @@ async def download_img(url: str, path: str = '', proxy: str = None) -> str:
     """
     if path == '':
         path = os.path.join(os.getcwd(), url.split('/').pop())
-
-    async with aiohttp.ClientSession() as session:
+    # 单个文件下载
+    if session is None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, proxy=proxy) as response:
+                if response.status == 200:
+                    data = await response.read()
+                    with open(path, 'wb') as f:
+                        f.write(data)
+    #多个文件异步下载
+    else:
         async with session.get(url, proxy=proxy) as response:
             if response.status == 200:
                 data = await response.read()

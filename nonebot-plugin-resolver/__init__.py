@@ -1,6 +1,7 @@
 import asyncio
 import json
 
+import aiohttp
 from nonebot import on_regex, get_driver, logger
 from nonebot.plugin import PluginMetadata
 from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment
@@ -11,7 +12,7 @@ from .config import Config
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
 from .tiktok_utills import get_id_video, generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
-from .constants import URL_TYPE_CODE_DICT, BASE_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK
+from .constants import URL_TYPE_CODE_DICT, BILI_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -24,8 +25,9 @@ __plugin_meta__ = PluginMetadata(
 
 # 配置加载
 global_config = Config.parse_obj(get_driver().config.dict())
-resolver_proxy = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
+resolver_proxy: str = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
 IS_OVERSEA: bool = getattr(global_config, "is_oversea", False)
+IS_LAGRANGE: bool = getattr(global_config, "is_lagrange", False)
 
 # 代理加载
 aiohttp_proxies = {
@@ -104,8 +106,8 @@ async def bilibili(event: Event) -> None:
     video_id = re.search(r"video\/[^\?\/ ]+", url)[0].split('/')[1]
     # logger.error(video_id)
     video_title = httpx.get(
-        f"{BASE_VIDEO_INFO}?bvid={video_id}" if video_id.startswith(
-            "BV") else f"{BASE_VIDEO_INFO}?aid={video_id}", headers=header)
+        f"{BILI_VIDEO_INFO}?bvid={video_id}" if video_id.startswith(
+            "BV") else f"{BILI_VIDEO_INFO}?aid={video_id}", headers=header)
     # logger.info(video_title)
     video_title = video_title.json()['data']['title']
     video_title = delete_boring_characters(video_title)
@@ -342,45 +344,46 @@ async def redbook(bot: Bot, event: Event):
     :param event:
     :return:
     """
-    msg_url = re.search(r"(http:|https:)\/\/www\.xiaohongshu\.com\/explore\/(\w+)",
+    msg_url = re.search(r"(http:|https:)\/\/(xhslink|xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
                         str(event.message).strip())[0]
     # 请求头
     headers = {
-        "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1 Edg/110.0.0.0",
-        "cookie": "xhsTrackerId=7388abf6-2408-4e9a-8152-140ea8f5149f; xhsTrackerId.sig=Tpe1NCZ_pwRAXtm5IRfTK4Ie13LAhfn6cYScxV-IalE; a1=1866d900346b66jir33pjqgc03ropmfs02us1uchx10000135053; webId=f13d8bdb8bdc7da43646085bcc45045a; gid=yYKKfj88K082yYKKfj88qJ7S4KDKKV3FqqUV7xCAkS8qFMy8lU6iMy888yq282q8f2Y4S02J; gid.sign=bZspQsILDRcyjFKBcv/QLYXdSyo=; web_session=030037a4c042b15e5c1889508b244ad113e053; xhsTracker=url=noteDetail&xhsshare=WeixinSession; xhsTracker.sig=c7fp5QrY6HcoTDaS9n_cwgdBDxv0VfZzRSSSryslneA; extra_exp_ids=h5_2302011_origin,h5_1208_clt,h5_1130_clt,ios_wx_launch_open_app_exp,h5_video_ui_exp3,wx_launch_open_app_duration_origin,ques_clt2; extra_exp_ids.sig=CUGkGsXOyAfjUIy2Tj7J3xbdMjA_JzhGRdagzqYdnbg; webBuild=1.1.21; xsecappid=xhs-pc-web; websectiga=59d3ef1e60c4aa37a7df3c23467bd46d7f1da0b1918cf335ee7f2e9e52ac04cf; sec_poison_id=1249155d-9e9e-4392-8658-505c74a53135"
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'cookie': '',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 UBrowser/6.2.4098.3 Safari/537.36',
     }
     if "xhslink" in msg_url:
         msg_url = httpx.get(msg_url, headers=headers, follow_redirects=True).url
         msg_url = str(msg_url)
-    video_id = re.search(r'/explore/(\w+)', msg_url) or re.search(r'/discovery/item/(\w+)', msg_url)
-    video_id = video_id[1]
+    xhs_id = re.search(r'/explore/(\w+)', msg_url) or re.search(r'/discovery/item/(\w+)', msg_url)
+    xhs_id = xhs_id[1]
 
-    html = httpx.get(f'https://www.xiaohongshu.com/discovery/item/{video_id}', headers=headers).text
+    html = httpx.get(f'{XHS_REQ_LINK}{xhs_id}', headers=headers).text
     response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
-    response_json = re.sub(r'(\\u[a-zA-Z0-9]{4})', lambda x: x.group(1).encode("utf-8").decode("unicode-escape"),
-                           response_json)
+    response_json = response_json.replace("undefined", "null")
     response_json = json.loads(response_json)
-    note_data = response_json['noteData']['data']['noteData']
+    note_data = response_json['note']['noteDetailMap'][xhs_id]['note']
     type = note_data['type']
-    aio_task = []
     note_title = note_data['title']
     note_desc = note_data['desc']
     await xhs.send(Message(
         f"R助手极速版识别：小红书，{note_title}\n{note_desc}"))
 
+
+    aio_task = []
     if type == 'normal':
         image_list = note_data['imageList']
-        for i in range(len(image_list)):
-            image_url = 'https:' + image_list[i]['url']
-            aio_task.append(download_img(image_url, f'{os.getcwd()}/{str(i)}.jpg'))
+        # 批量下载
+        async with aiohttp.ClientSession() as session:
+            for index, item in enumerate(image_list):
+                aio_task.append(asyncio.create_task(download_img(item['urlDefault'], f'{os.getcwd()}/{str(index)}.jpg', session=session)))
+            links_path = await asyncio.gather(*aio_task)
     elif type == 'video':
-        video_url = note_data['video']['url']
+        video_url = note_data['video']['media']['stream']['h264'][0]['masterUrl']
         path = await download_video(video_url)
         await tik.send(Message(MessageSegment.video(path)))
         os.unlink(path)
         return
-    # 批量下载
-    links_path = await asyncio.gather(*aio_task)
     # 发送图片
     links = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
                                         content=Message(MessageSegment.image(link))) for link in links_path]
