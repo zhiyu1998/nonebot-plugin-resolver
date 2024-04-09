@@ -1,11 +1,13 @@
 import asyncio
 import json
+from typing import cast
 
-import aiohttp
 from nonebot import on_regex, get_driver, logger
+from nonebot.exception import ActionFailed, NetworkError
 from nonebot.plugin import PluginMetadata
+from nonebot.matcher import current_bot
 from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment
-from nonebot.adapters.onebot.v11.event import GroupMessageEvent
+from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageEvent
 
 from .common_utils import *
 from .config import Config
@@ -105,14 +107,18 @@ async def bilibili(event: Event) -> None:
     # logger.error(url)
     video_id = re.search(r"video\/[^\?\/ ]+", url)[0].split('/')[1]
     # logger.error(video_id)
-    video_title = httpx.get(
+    video_info = httpx.get(
         f"{BILI_VIDEO_INFO}?bvid={video_id}" if video_id.startswith(
             "BV") else f"{BILI_VIDEO_INFO}?aid={video_id}", headers=header)
     # logger.info(video_title)
-    video_title = video_title.json()['data']['title']
+    video_info = video_info.json()['data']
+    if video_info is None:
+        await bili23.send(Message(f"R助手极速版识别：B站，出错，无法获取数据！"))
+        return
+    video_title, video_cover = video_info['title'], video_info['pic']
     video_title = delete_boring_characters(video_title)
     # video_title = re.sub(r'[\\/:*?"<>|]', "", video_title)
-    await bili23.send(Message(f"R助手极速版识别：B站，{video_title}"))
+    await bili23.send(Message(MessageSegment.image(video_cover)) + Message(f"\nR助手极速版识别：B站，{video_title}"))
     # 获取下载链接
     video_url, audio_url = getDownloadUrl(url)
     # 下载视频和音频
@@ -124,7 +130,8 @@ async def bilibili(event: Event) -> None:
     # logger.info(os.getcwd())
     # 发送出去
     # logger.info(path)
-    await douyin.send(Message(MessageSegment.video(f"{path}-res.mp4")))
+    # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
+    await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
     # logger.info(f'{path}-res.mp4')
     # 清理文件
     os.unlink(f"{path}-res.mp4")
@@ -141,10 +148,12 @@ async def dy(bot: Bot, event: Event) -> None:
     """
     # 消息
     msg: str = str(event.message).strip()
+    logger.info(msg)
     # 正则匹配
-    reg = r"(http:|https:)\/\/v.douyin.com\/[A-Za-z\d._?%&+\-=\/#]*"
+    reg = r"(http:|https:)\/\/v.douyin.com\/[A-Za-z\d._?%&+\-=#]*"
     dou_url = re.search(reg, msg, re.I)[0]
     dou_url_2 = httpx.get(dou_url).headers.get('location')
+    logger.error(dou_url_2)
     reg2 = r".*video\/(\d+)\/(.*?)"
     # 获取到ID
     dou_id = re.search(reg2, dou_url_2, re.I)[1]
@@ -182,7 +191,8 @@ async def dy(bot: Bot, event: Event) -> None:
                 player_addr = detail.get("video").get("play_addr").get("url_list")[0]
                 # 发送视频
                 # logger.info(player_addr)
-                await douyin.send(Message(MessageSegment.video(player_addr)))
+                # await douyin.send(Message(MessageSegment.video(player_addr)))
+                await auto_video_send(event, player_addr, IS_LAGRANGE)
             elif url_type == 'image':
                 # 无水印图片列表/No watermark image list
                 no_watermark_image_list = []
@@ -287,7 +297,8 @@ async def ac(event: Event) -> None:
     # logger.info(output_folder_name, output_file_name)
     await asyncio.gather(*[download_m3u8_videos(url, i) for i, url in enumerate(m3u8_full_urls)])
     merge_ac_file_to_mp4(ts_names, output_file_name)
-    await acfun.send(Message(MessageSegment.video(f"{os.getcwd()}/{output_file_name}")))
+    # await acfun.send(Message(MessageSegment.video(f"{os.getcwd()}/{output_file_name}")))
+    await auto_video_send(event, f"{os.getcwd()}/{output_file_name}", IS_LAGRANGE)
     os.unlink(output_file_name)
     os.unlink(output_file_name + ".jpg")
 
@@ -344,7 +355,7 @@ async def redbook(bot: Bot, event: Event):
     :param event:
     :return:
     """
-    msg_url = re.search(r"(http:|https:)\/\/(xhslink|xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
+    msg_url = re.search(r"(http:|https:)\/\/(xhslink|(www\.)xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
                         str(event.message).strip())[0]
     # 请求头
     headers = {
@@ -381,7 +392,8 @@ async def redbook(bot: Bot, event: Event):
     elif type == 'video':
         video_url = note_data['video']['media']['stream']['h264'][0]['masterUrl']
         path = await download_video(video_url)
-        await tik.send(Message(MessageSegment.video(path)))
+        # await xhs.send(Message(MessageSegment.video(path)))
+        await auto_video_send(event, path, IS_LAGRANGE)
         os.unlink(path)
         return
     # 发送图片
@@ -410,3 +422,54 @@ def auto_determine_send_type(user_id: int, task: str):
     elif task.endswith("mp4"):
         return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
                                           content=Message(MessageSegment.video(task)))
+
+async def upload_data_file(bot: Bot, event: Event, data: str):
+    """
+    上传群文件
+    :param bot:
+    :param event:
+    :param data:
+    :return:
+    """
+    if isinstance(event, GroupMessageEvent):
+        await upload_group_file(bot, group_id=event.group_id, file=data)
+    elif isinstance(event, PrivateMessageEvent):
+        await upload_private_file(bot, user_id=event.user_id, file=data)
+
+async def upload_group_file(bot:Bot, group_id: int, file: str):
+    try:
+        await bot.upload_group_file(group_id=group_id, file=file, name="{:.0f}.mp4".format(time.time()))
+    except (ActionFailed, NetworkError) as e:
+        logger.error(e)
+        if isinstance(e, ActionFailed) and e.info["wording"] == "server" \
+                                                                " requires unsupported ftn upload":
+            await bot.send_group_msg(group_id=group_id, message=Message(MessageSegment.text(
+                "[ERROR]  文件上传失败\r\n[原因]  机器人缺少上传文件的权限\r\n[解决办法]  "
+                "请将机器人设置为管理员或者允许群员上传文件")))
+        elif isinstance(e, NetworkError):
+            await bot.send_group_msg(group_id=group_id,
+                                     message=Message(MessageSegment.text("[ERROR]文件上传失败\r\n[原因]  "
+                                                                             "上传超时(一般来说还在传,建议等待五分钟)")))
+
+async def upload_private_file(bot:Bot, user_id: int, file: str):
+    try:
+        await bot.upload_private_file(user_id=user_id, file=file, name="{:.0f}.mp4".format(time.time()))
+    except (ActionFailed, NetworkError) as e:
+        logger.error(e)
+        if isinstance(e, NetworkError):
+            await bot.send_private_msg(user_id=user_id, message=Message(MessageSegment.text(
+                    "[ERROR]  文件上传失败\r\n[原因]  上传超时(一般来说还在传,建议等待五分钟)")))
+
+
+async def auto_video_send(event: Event, data: str, is_lagrange: bool = False):
+    """
+    拉格朗日自动转换成上传
+    :param event:
+    :param data:
+    :param is_lagrange:
+    :return:
+    """
+    bot: Bot = cast(Bot, current_bot.get())
+    if "http" in data:
+        data = await download_video(data)
+    await upload_data_file(bot=bot, event=event, data=data) if is_lagrange else bot.send(event, Message(MessageSegment.video(data)))

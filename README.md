@@ -45,6 +45,7 @@ pip install --upgrade nonebot-plugin-resolver
 ```
 DOUYIN_CK='' # douyin's cookie, 格式：odin_tt=xxx;sessionid_ss=xxx;ttwid=xxx;passport_csrf_token=xxx;msToken=xxx;
 IS_OVERSEA=False # 是否是海外服务器部署
+IS_LAGRANGE=False # 是否是拉格朗日（https://github.com/KonataDev/Lagrange.Core）
 resolver_proxy = "http://127.0.0.1:7890" # 代理
 ```
 
