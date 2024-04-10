@@ -21,13 +21,25 @@ async def download_video(url, proxy: str = None):
     # 使用时间戳生成文件名，确保唯一性
     path = os.path.join(os.getcwd(), f"{int(time.time())}.mp4")
 
+    # 配置代理
+    client_config = {
+        'headers': header,
+        'timeout': httpx.Timeout(60, connect=5.0),
+        'follow_redirects': True
+    }
+    if proxy:
+        client_config['proxies'] = {'https': proxy}
     # 下载文件
-    async with httpx.AsyncClient(proxies=proxy) as client:
-        async with client.stream("GET", url, headers=header) as resp:
-            with open(path, "wb") as f:
-                async for chunk in resp.aiter_bytes():
-                    f.write(chunk)
-    return path
+    try:
+        async with httpx.AsyncClient(**client_config) as client:
+            async with client.stream("GET", url) as resp:
+                with open(path, "wb") as f:
+                    async for chunk in resp.aiter_bytes():
+                        f.write(chunk)
+        return path
+    except Exception as e:
+        print(f"下载视频错误原因是: {e}")
+        return None
 
 
 async def download_img(url: str, path: str = '', proxy: str = None, session = None) -> str:

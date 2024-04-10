@@ -23,6 +23,7 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/zhiyu1998/nonebot-plugin-resolver",
     config=Config,
+    supported_adapters={"~onebot.v11"}
 )
 
 # 配置加载
@@ -56,6 +57,9 @@ twit = on_regex(
 )
 xhs = on_regex(
     r"(.*)(xhslink.com|xiaohongshu.com)", priority=1
+)
+y2b = on_regex(
+    r"(.*)(youtube.com|youtu.be)", priority=1
 )
 
 GLOBAL_NICKNAME = "R助手极速版"
@@ -408,6 +412,48 @@ async def redbook(bot: Bot, event: Event):
     for temp in links_path:
         os.unlink(temp)
 
+@y2b.handle()
+async def youtube(bot: Bot, event: Event):
+    msg_url = re.search(r"(?:https?:\/\/)?(www\.)?youtube\.com\/[A-Za-z\d._?%&+\-=\/#]*|(?:https?:\/\/)?youtu\.be\/[A-Za-z\d._?%&+\-=\/#]*",
+                        str(event.message).strip())[0]
+
+    form_data = {
+        "link": msg_url,
+        "from": "videodownloaded"
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+        "origin": "https://www.ytbsaver.com"
+    }
+    # Configure proxy if needed
+    client_args = {
+        'headers': headers,
+        'timeout': httpx.Timeout(60, connect=5.0),
+    }
+    if IS_OVERSEA is False:
+        client_args['proxies'] = {
+            "https": httpx_proxies
+        }
+
+    # Create an HTTP client instance
+    async with httpx.AsyncClient(**client_args) as client:
+        # Perform the POST request
+        response = await client.post("https://api.ytbvideoly.com/api/thirdvideo/parse",
+                                     data=form_data)
+        response_data = response.json()
+
+        # Process response data
+        video_data = response_data['data']
+        title = video_data['title']
+        duration = video_data['duration']
+        formats = video_data['formats']
+
+        await y2b.send(Message(f"识别：油管，{title}\n时长：{duration} 秒"))
+
+        # Handle video formats and download video
+        if formats:
+            video_url = formats[-1]['url']  # Assuming last format is the preferred one
+            await auto_video_send(event, video_url, IS_LAGRANGE)
 
 def auto_determine_send_type(user_id: int, task: str):
     """
@@ -470,6 +516,7 @@ async def auto_video_send(event: Event, data: str, is_lagrange: bool = False):
     :return:
     """
     bot: Bot = cast(Bot, current_bot.get())
-    if "http" in data:
+    if data.startswith("http"):
         data = await download_video(data)
     await upload_data_file(bot=bot, event=event, data=data) if is_lagrange else bot.send(event, Message(MessageSegment.video(data)))
+    os.unlink(data)
