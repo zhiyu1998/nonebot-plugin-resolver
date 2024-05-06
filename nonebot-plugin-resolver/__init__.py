@@ -14,6 +14,7 @@ from .config import Config
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
 from .tiktok_utills import get_id_video, generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
+from .ytdlp_utils import get_video_title, download_video
 from .constants import URL_TYPE_CODE_DICT, BILI_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
 
 __plugin_meta__ = PluginMetadata(
@@ -23,7 +24,6 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/zhiyu1998/nonebot-plugin-resolver",
     config=Config,
-    supported_adapters={"~onebot.v11"}
 )
 
 # 配置加载
@@ -62,7 +62,7 @@ y2b = on_regex(
     r"(.*)(youtube.com|youtu.be)", priority=1
 )
 
-GLOBAL_NICKNAME = "R助手极速版"
+GLOBAL_NICKNAME = "R插件极速版"
 
 
 @bili23.handle()
@@ -97,7 +97,7 @@ async def bilibili(event: Event) -> None:
         dynamic_id = re.search(r'[^/]+(?!.*/)', url)[0]
         dynamic_desc, dynamic_src = get_dynamic(dynamic_id)
         if len(dynamic_src) > 0:
-            await bili23.send(Message(f"R助手极速版识别：B站动态，{dynamic_desc}"))
+            await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站动态，{dynamic_desc}"))
             paths = await asyncio.gather(*dynamic_src)
             await asyncio.gather(*[bili23.send(Message(f"[CQ:image,file=file:///{path}]")) for path in paths])
             # 刪除文件
@@ -117,12 +117,12 @@ async def bilibili(event: Event) -> None:
     # logger.info(video_title)
     video_info = video_info.json()['data']
     if video_info is None:
-        await bili23.send(Message(f"R助手极速版识别：B站，出错，无法获取数据！"))
+        await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
         return
     video_title, video_cover = video_info['title'], video_info['pic']
     video_title = delete_boring_characters(video_title)
     # video_title = re.sub(r'[\\/:*?"<>|]', "", video_title)
-    await bili23.send(Message(MessageSegment.image(video_cover)) + Message(f"\nR助手极速版识别：B站，{video_title}"))
+    await bili23.send(Message(MessageSegment.image(video_cover)) + Message(f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}"))
     # 获取下载链接
     video_url, audio_url = getDownloadUrl(url)
     # 下载视频和音频
@@ -166,7 +166,7 @@ async def dy(bot: Bot, event: Event) -> None:
     douyin_ck = getattr(global_config, "douyin_ck", "")
     if douyin_ck == "":
         logger.error(global_config)
-        await douyin.send(Message(f"R助手极速版识别：抖音，无法获取到管理员设置的抖音ck！"))
+        await douyin.send(Message(f"{GLOBAL_NICKNAME}识别：抖音，无法获取到管理员设置的抖音ck！"))
         return
     # API、一些后续要用到的参数
     headers = {
@@ -181,14 +181,14 @@ async def dy(bot: Bot, event: Event) -> None:
         async with session.get(api_url, headers=headers, timeout=10) as response:
             detail = await response.json()
             if detail is None:
-                await douyin.send(Message(f"R助手极速版识别：抖音，解析失败！"))
+                await douyin.send(Message(f"{GLOBAL_NICKNAME}识别：抖音，解析失败！"))
                 return
             # 获取信息
             detail = detail['aweme_detail']
             # 判断是图片还是视频
             url_type_code = detail['aweme_type']
             url_type = URL_TYPE_CODE_DICT.get(url_type_code, 'video')
-            await douyin.send(Message(f"R助手极速版识别：抖音，{detail.get('desc')}"))
+            await douyin.send(Message(f"{GLOBAL_NICKNAME}识别：抖音，{detail.get('desc')}"))
             # 根据类型进行发送
             if url_type == 'video':
                 # 识别播放地址
@@ -273,7 +273,7 @@ async def tiktok(event: Event) -> None:
                     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
     }, timeout=10)
         data = response.json()['aweme_list'][0]
-        await tik.send(Message(f"R助手极速版识别：tiktok, {data['desc']}"))
+        await tik.send(Message(f"{GLOBAL_NICKNAME}识别：tiktok, {data['desc']}"))
         path = await download_video(data['video']['play_addr']['url_list'][0], proxy)
         await tik.send(Message(MessageSegment.video(path)))
         # 清除文件
@@ -296,7 +296,7 @@ async def ac(event: Event) -> None:
         inputMsg = f"https://www.acfun.cn/v/ac{re.search(r'ac=([^&?]*)', inputMsg)[1]}"
 
     url_m3u8s, video_name = parse_url(inputMsg)
-    await acfun.send(Message(f"R助手极速版识别：猴山，{video_name}"))
+    await acfun.send(Message(f"{GLOBAL_NICKNAME}识别：猴山，{video_name}"))
     m3u8_full_urls, ts_names, output_folder_name, output_file_name = parse_m3u8(url_m3u8s)
     # logger.info(output_folder_name, output_file_name)
     await asyncio.gather(*[download_m3u8_videos(url, i) for i, url in enumerate(m3u8_full_urls)])
@@ -327,7 +327,7 @@ async def twitter(bot: Bot, event: Event):
     x_url: str = x_resp.json()['data']['url']
     logger.info(x_url)
 
-    await twit.send(Message(f"R助手极速版识别：小蓝鸟学习版"))
+    await twit.send(Message(f"{GLOBAL_NICKNAME}识别：小蓝鸟学习版"))
     # 主要内容
     aio_task = []
 
@@ -382,7 +382,7 @@ async def redbook(bot: Bot, event: Event):
     note_title = note_data['title']
     note_desc = note_data['desc']
     await xhs.send(Message(
-        f"R助手极速版识别：小红书，{note_title}\n{note_desc}"))
+        f"{GLOBAL_NICKNAME}识别：小红书，{note_title}\n{note_desc}"))
 
 
     aio_task = []
@@ -417,43 +417,13 @@ async def youtube(bot: Bot, event: Event):
     msg_url = re.search(r"(?:https?:\/\/)?(www\.)?youtube\.com\/[A-Za-z\d._?%&+\-=\/#]*|(?:https?:\/\/)?youtu\.be\/[A-Za-z\d._?%&+\-=\/#]*",
                         str(event.message).strip())[0]
 
-    form_data = {
-        "link": msg_url,
-        "from": "videodownloaded"
-    }
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
-        "origin": "https://www.ytbsaver.com"
-    }
-    # Configure proxy if needed
-    client_args = {
-        'headers': headers,
-        'timeout': httpx.Timeout(60, connect=5.0),
-    }
-    if IS_OVERSEA is False:
-        client_args['proxies'] = {
-            "https": httpx_proxies
-        }
+    title = get_video_title(msg_url, IS_OVERSEA, resolver_proxy)
 
-    # Create an HTTP client instance
-    async with httpx.AsyncClient(**client_args) as client:
-        # Perform the POST request
-        response = await client.post("https://api.ytbvideoly.com/api/thirdvideo/parse",
-                                     data=form_data)
-        response_data = response.json()
+    await y2b.send(Message(f"{GLOBAL_NICKNAME}识别：油管，{title}\n"))
 
-        # Process response data
-        video_data = response_data['data']
-        title = video_data['title']
-        duration = video_data['duration']
-        formats = video_data['formats']
+    target_ytb_video_path = await download_video(msg_url, IS_OVERSEA, os.getcwd(), resolver_proxy)
 
-        await y2b.send(Message(f"识别：油管，{title}\n时长：{duration} 秒"))
-
-        # Handle video formats and download video
-        if formats:
-            video_url = formats[-1]['url']  # Assuming last format is the preferred one
-            await auto_video_send(event, video_url, IS_LAGRANGE)
+    await auto_video_send(event, target_ytb_video_path, IS_LAGRANGE)
 
 def auto_determine_send_type(user_id: int, task: str):
     """
