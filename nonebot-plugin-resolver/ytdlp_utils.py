@@ -17,7 +17,7 @@ def get_video_title(url, is_oversea, my_proxy=None):
     # 返回输出结果（视频标题）
     return result.stdout.strip()
 
-async def download_video(url, is_oversea, path, my_proxy=None):
+async def download_ytb_video(url, is_oversea, path, my_proxy=None):
     # 构建命令
     command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", "-f", "best[height<=720][ext=mp4]", "--merge-output-format", "mp4", url]
     if not is_oversea and my_proxy:

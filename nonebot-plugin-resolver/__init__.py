@@ -14,7 +14,7 @@ from .config import Config
 from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
 from .tiktok_utills import get_id_video, generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
-from .ytdlp_utils import get_video_title, download_video
+from .ytdlp_utils import get_video_title, download_ytb_video
 from .constants import URL_TYPE_CODE_DICT, BILI_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
 
 __plugin_meta__ = PluginMetadata(
@@ -157,7 +157,7 @@ async def dy(bot: Bot, event: Event) -> None:
     reg = r"(http:|https:)\/\/v.douyin.com\/[A-Za-z\d._?%&+\-=#]*"
     dou_url = re.search(reg, msg, re.I)[0]
     dou_url_2 = httpx.get(dou_url).headers.get('location')
-    logger.error(dou_url_2)
+    # logger.error(dou_url_2)
     reg2 = r".*video\/(\d+)\/(.*?)"
     # 获取到ID
     dou_id = re.search(reg2, dou_url_2, re.I)[1]
@@ -421,7 +421,7 @@ async def youtube(bot: Bot, event: Event):
 
     await y2b.send(Message(f"{GLOBAL_NICKNAME}识别：油管，{title}\n"))
 
-    target_ytb_video_path = await download_video(msg_url, IS_OVERSEA, os.getcwd(), resolver_proxy)
+    target_ytb_video_path = await download_ytb_video(msg_url, IS_OVERSEA, os.getcwd(), resolver_proxy)
 
     await auto_video_send(event, target_ytb_video_path, IS_LAGRANGE)
 
