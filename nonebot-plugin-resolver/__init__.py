@@ -170,7 +170,7 @@ async def dy(bot: Bot, event: Event) -> None:
         return
     # API、一些后续要用到的参数
     headers = {
-        'accept-encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
         'referer': f'https://www.douyin.com/video/{dou_id}',
         'cookie': douyin_ck
