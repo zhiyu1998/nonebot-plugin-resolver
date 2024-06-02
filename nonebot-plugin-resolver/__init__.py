@@ -15,6 +15,7 @@ from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dyn
 from .tiktok_utills import get_id_video, generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
+from .freyrjs import parse_freyr_log, execute_freyr_command
 from .constants import URL_TYPE_CODE_DICT, BILI_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
 
 __plugin_meta__ = PluginMetadata(
@@ -43,7 +44,7 @@ httpx_proxies = {
 }
 
 bili23 = on_regex(
-    r"(.*)(bilibili.com|b23.tv)", priority=1
+    r"(.*)(bilibili.com|b23.tv|BV[0-9a-zA-Z]{10})", priority=1
 )
 douyin = on_regex(
     r"(.*)(v.douyin.com)", priority=1
@@ -60,6 +61,9 @@ xhs = on_regex(
 )
 y2b = on_regex(
     r"(.*)(youtube.com|youtu.be)", priority=1
+)
+freyr = on_regex(
+    r"(.*)(music.apple.com|open.spotify.com)"
 )
 
 GLOBAL_NICKNAME = "R插件极速版"
@@ -82,6 +86,9 @@ async def bilibili(event: Event) -> None:
     # 正则匹配
     url_reg = "(http:|https:)\/\/www.bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
     b_short_rex = "(http:|https:)\/\/b23.tv\/[A-Za-z\d._?%&+\-=\/#]*"
+    # BV处理
+    if re.match(r'^BV[1-9a-zA-Z]{10}$', url):
+        url = 'https://www.bilibili.com/video/' + url
     # 处理短号问题
     if 'b23.tv' in url:
         b_short_url = re.search(b_short_rex, url)[0]
@@ -114,7 +121,7 @@ async def bilibili(event: Event) -> None:
     video_info = httpx.get(
         f"{BILI_VIDEO_INFO}?bvid={video_id}" if video_id.startswith(
             "BV") else f"{BILI_VIDEO_INFO}?aid={video_id}", headers=header)
-    # logger.info(video_title)
+    logger.info(video_info)
     video_info = video_info.json()['data']
     if video_info is None:
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
@@ -126,11 +133,11 @@ async def bilibili(event: Event) -> None:
     # 获取下载链接
     video_url, audio_url = getDownloadUrl(url)
     # 下载视频和音频
-    path = os.getcwd() + "/" + video_title
+    path = os.getcwd() + "/" + video_id
     await asyncio.gather(
         downloadBFile(video_url, f"{path}-video.m4s", logger.info),
         downloadBFile(audio_url, f"{path}-audio.m4s", logger.info))
-    mergeFileToMp4(f"{video_title}-video.m4s", f"{video_title}-audio.m4s", f"{path}-res.mp4")
+    mergeFileToMp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4")
     # logger.info(os.getcwd())
     # 发送出去
     # logger.info(path)
@@ -138,7 +145,6 @@ async def bilibili(event: Event) -> None:
     await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
     # logger.info(f'{path}-res.mp4')
     # 清理文件
-    os.unlink(f"{path}-res.mp4")
     if os.path.exists(f"{path}-res.mp4.jpg"):
         os.unlink(f"{path}-res.mp4.jpg")
 
@@ -424,6 +430,38 @@ async def youtube(bot: Bot, event: Event):
     target_ytb_video_path = await download_ytb_video(msg_url, IS_OVERSEA, os.getcwd(), resolver_proxy)
 
     await auto_video_send(event, target_ytb_video_path, IS_LAGRANGE)
+
+
+@freyr.handle()
+async def freyrjs(bot: Bot, event: Event):
+    # 过滤参数
+    message = str(event.message).replace("&ls", "")
+    # 匹配名字
+    freyr_name = "Spotify" if "spotify" in message else "Apple Music"
+    # 下载地址
+    music_download_path = os.path.join(os.getcwd(), "am")
+    # 执行下载命令
+    result = await execute_freyr_command(message, music_download_path)
+    logger.info(result.stdout.decode())
+    # 获取信息
+    parsed_result = await parse_freyr_log(result.stdout.decode())
+    await freyr.send(Message(f"识别：{freyr_name}，{parsed_result['title']}--{parsed_result['artist']}\n{parsed_result['album']}"))
+    # 检查目录是否存在
+    music_path = os.path.join(music_download_path, parsed_result['artist'], parsed_result['album'])
+    if os.path.exists(music_path):
+        logger.info('目录存在。正在获取.m4a文件...')
+
+        # 读取目录中的所有文件和文件夹
+        files = os.listdir(music_path)
+        # 过滤出以.m4a结尾的文件
+        m4a_files = [file for file in files if os.path.splitext(file)[1].lower() == '.m4a']
+
+        # 打印出所有.m4a文件
+        logger.info('找到以下.m4a文件:')
+        for file in m4a_files:
+            await auto_video_send(event, os.path.join(music_path, file), IS_LAGRANGE)
+    else:
+        await freyr.send(Message(f"下载失败！没有找到{freyr_name}下载下来文件！"))
 
 def auto_determine_send_type(user_id: int, task: str):
     """
