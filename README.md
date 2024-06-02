@@ -38,6 +38,15 @@ nb plugin install nonebot-plugin-resolver
 pip install --upgrade nonebot-plugin-resolver
 ```
 
+3. 【可选】安装`am`解析必要的依赖
+```shell
+npm install -g freyr
+# 或者你有yarn的话可以使用
+yarn global add freyr
+# 接着安装它的依赖
+apt-get install atomicparsley
+```
+
 ## ⚙️ 配置
 
 在 nonebot2 项目的`.env`文件中添加下表中的可选配置
