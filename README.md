@@ -58,6 +58,10 @@ IS_LAGRANGE=False # 是否是拉格朗日（https://github.com/KonataDev/Lagrang
 resolver_proxy = "http://127.0.0.1:7890" # 代理
 ```
 
+## 🤺 交流群
+
+<img src="./img/group.JPG" width="30%" height="30%">
+
 ## 🎉 使用 & 效果图
 ![help](./img/example.png)
 ![help](./img/example2.png)
