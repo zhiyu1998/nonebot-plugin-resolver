@@ -198,7 +198,8 @@ async def dy(bot: Bot, event: Event) -> None:
             # 根据类型进行发送
             if url_type == 'video':
                 # 识别播放地址
-                player_addr = detail.get("video").get("play_addr").get("url_list")[0]
+                player_addr_list = detail.get("video").get("play_addr").get("url_list")
+                player_addr = player_addr_list[len(player_addr_list) - 1]
                 # 发送视频
                 # logger.info(player_addr)
                 # await douyin.send(Message(MessageSegment.video(player_addr)))
