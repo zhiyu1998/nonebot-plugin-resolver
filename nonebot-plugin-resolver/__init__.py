@@ -86,9 +86,18 @@ async def bilibili(event: Event) -> None:
     # 正则匹配
     url_reg = "(http:|https:)\/\/www.bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
     b_short_rex = "(http:|https:)\/\/b23.tv\/[A-Za-z\d._?%&+\-=\/#]*"
+    b_mini_rex = r'b23\.tv\\\/([a-zA-Z0-9]+)'
     # BV处理
     if re.match(r'^BV[1-9a-zA-Z]{10}$', url):
         url = 'https://www.bilibili.com/video/' + url
+    # 处理小程序无法解析
+    if 'b23.tv' and 'QQ小程序' in url:
+        b_mini_url = re.search(b_mini_rex, url)
+        #if b_mini_url:
+        b_mini_url = 'https://b23.tv/' + b_mini_url.group(1)
+            #await bot.send(event, f"获取地址为：{b_mini_url}")
+        resp = httpx.get(b_mini_url, headers=header, follow_redirects=True)
+        url: str = str(resp.url)
     # 处理短号问题
     if 'b23.tv' in url:
         b_short_url = re.search(b_short_rex, url)[0]
@@ -164,9 +173,9 @@ async def dy(bot: Bot, event: Event) -> None:
     dou_url = re.search(reg, msg, re.I)[0]
     dou_url_2 = httpx.get(dou_url).headers.get('location')
     # logger.error(dou_url_2)
-    reg2 = r".*video\/(\d+)\/(.*?)"
+    reg2 = r".*(video|note)\/(\d+)\/(.*?)"
     # 获取到ID
-    dou_id = re.search(reg2, dou_url_2, re.I)[1]
+    dou_id = re.search(reg2, dou_url_2, re.I)[2]
     # logger.info(dou_id)
     # 如果没有设置dy的ck就结束，因为获取不到
     douyin_ck = getattr(global_config, "douyin_ck", "")
