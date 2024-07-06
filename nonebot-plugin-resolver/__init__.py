@@ -420,7 +420,7 @@ async def redbook(bot: Bot, event: Event):
         return
     # 发送图片
     links = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                        content=Message(MessageSegment.image(link))) for link in links_path]
+                                        content=Message(MessageSegment.image(f"file://{link}"))) for link in links_path]
     # 发送异步后的数据
     if isinstance(event, GroupMessageEvent):
         await bot.send_group_forward_msg(group_id=event.group_id, messages=links)
