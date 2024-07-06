@@ -69,3 +69,8 @@ resolver_proxy = "http://127.0.0.1:7890" # 代理
 ![help](./img/example4.png)
 ![help](./img/example5.png)
 
+🌸 同时鸣谢感谢以下开发者对 `R插件` 出的贡献：
+
+<a href="https://github.com/zhiyu1998/nonebot-plugin-resolver/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=zhiyu1998/nonebot-plugin-resolver&max=1000" />
+</a>
