@@ -68,6 +68,7 @@ def mergeFileToMp4(vFullFileName: str, aFullFileName: str, outputFileName: str, 
         os.unlink(vFullFileName)
         os.unlink(aFullFileName)
 
+
 def get_dynamic(dynamic_id: str):
     """
         获取哔哩哔哩动态
@@ -88,14 +89,15 @@ def get_dynamic(dynamic_id: str):
 
     return dynamic_desc, dynamic_src
 
+
 def extra_bili_info(video_info):
     """
         格式化视频信息
     """
     video_state = video_info['stat']
     video_like, video_coin, video_favorite, video_share, video_view, video_danmaku, video_reply = video_state['like'], \
-    video_state['coin'], video_state['favorite'], video_state['share'], video_state['view'], video_state['danmaku'], \
-    video_state['reply']
+        video_state['coin'], video_state['favorite'], video_state['share'], video_state['view'], video_state['danmaku'], \
+        video_state['reply']
 
     video_data_map = {
         "点赞": video_like,
