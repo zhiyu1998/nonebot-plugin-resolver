@@ -534,7 +534,20 @@ async def auto_video_send(event: Event, data: str, is_lagrange: bool = False):
     :return:
     """
     bot: Bot = cast(Bot, current_bot.get())
+
+    # 如果data以"http"开头，先下载视频
     if data.startswith("http"):
         data = await download_video(data)
-    await upload_data_file(bot=bot, event=event, data=data) if is_lagrange else bot.send(event, Message(MessageSegment.video(data)))
+
+    # 如果是Lagrange，则上传数据文件
+    if is_lagrange:
+        await upload_data_file(bot=bot, event=event, data=data)
+    else:
+        # 根据事件类型发送不同的消息
+        if isinstance(event, GroupMessageEvent):
+            await bot.send_group_msg(group_id=event.group_id, message=Message(MessageSegment.video(f'file://{data}')))
+        elif isinstance(event, PrivateMessageEvent):
+            await bot.send_private_msg(user_id=event.user_id, message=Message(MessageSegment.video(f'file://{data}')))
+
+    # 删除临时文件
     os.unlink(data)
