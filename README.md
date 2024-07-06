@@ -63,13 +63,15 @@ resolver_proxy = "http://127.0.0.1:7890" # 代理
 <img src="./img/group.JPG" width="30%" height="30%">
 
 ## 🎉 使用 & 效果图
-![help](./img/example.png)
-![help](./img/example2.png)
-![help](./img/example3.png)
-![help](./img/example4.png)
-![help](./img/example5.png)
+![help](./img/example.webp)
+![help](./img/example2.webp)
+![help](./img/example3.webp)
+![help](./img/example4.webp)
+![help](./img/example5.webp)
 
-🌸 同时鸣谢感谢以下开发者对 `R插件` 出的贡献：
+## 贡献
+
+同时感谢以下开发者对 `Nonebot - R插件` 作出的贡献：
 
 <a href="https://github.com/zhiyu1998/nonebot-plugin-resolver/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=zhiyu1998/nonebot-plugin-resolver&max=1000" />
