@@ -11,7 +11,7 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageE
 
 from .common_utils import *
 from .config import Config
-from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic
+from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic, extra_bili_info
 from .tiktok_utills import get_id_video, generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
@@ -93,9 +93,9 @@ async def bilibili(event: Event) -> None:
     # 处理小程序无法解析
     if 'b23.tv' and 'QQ小程序' in url:
         b_mini_url = re.search(b_mini_rex, url)
-        #if b_mini_url:
+        # if b_mini_url:
         b_mini_url = 'https://b23.tv/' + b_mini_url.group(1)
-            #await bot.send(event, f"获取地址为：{b_mini_url}")
+        # await bot.send(event, f"获取地址为：{b_mini_url}")
         resp = httpx.get(b_mini_url, headers=header, follow_redirects=True)
         url: str = str(resp.url)
     # 处理短号问题
@@ -135,10 +135,12 @@ async def bilibili(event: Event) -> None:
     if video_info is None:
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
         return
-    video_title, video_cover = video_info['title'], video_info['pic']
+    video_title, video_cover, video_desc = video_info['title'], video_info['pic'], video_info['desc']
+
     video_title = delete_boring_characters(video_title)
     # video_title = re.sub(r'[\\/:*?"<>|]', "", video_title)
-    await bili23.send(Message(MessageSegment.image(video_cover)) + Message(f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}"))
+    await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
+        f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}"))
     # 获取下载链接
     video_url, audio_url = getDownloadUrl(url)
     # 下载视频和音频
@@ -285,9 +287,9 @@ async def tiktok(event: Event) -> None:
 
     async with httpx.AsyncClient() as client:
         response = await client.get(TIKTOK_VIDEO, params=params, headers={
-        "User-Agent":
-                    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
-    }, timeout=10)
+            "User-Agent":
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
+        }, timeout=10)
         data = response.json()['aweme_list'][0]
         await tik.send(Message(f"{GLOBAL_NICKNAME}识别：tiktok, {data['desc']}"))
         path = await download_video(data['video']['play_addr']['url_list'][0], proxy)
@@ -400,14 +402,14 @@ async def redbook(bot: Bot, event: Event):
     await xhs.send(Message(
         f"{GLOBAL_NICKNAME}识别：小红书，{note_title}\n{note_desc}"))
 
-
     aio_task = []
     if type == 'normal':
         image_list = note_data['imageList']
         # 批量下载
         async with aiohttp.ClientSession() as session:
             for index, item in enumerate(image_list):
-                aio_task.append(asyncio.create_task(download_img(item['urlDefault'], f'{os.getcwd()}/{str(index)}.jpg', session=session)))
+                aio_task.append(asyncio.create_task(
+                    download_img(item['urlDefault'], f'{os.getcwd()}/{str(index)}.jpg', session=session)))
             links_path = await asyncio.gather(*aio_task)
     elif type == 'video':
         video_url = note_data['video']['media']['stream']['h264'][0]['masterUrl']
@@ -428,10 +430,12 @@ async def redbook(bot: Bot, event: Event):
     for temp in links_path:
         os.unlink(temp)
 
+
 @y2b.handle()
 async def youtube(bot: Bot, event: Event):
-    msg_url = re.search(r"(?:https?:\/\/)?(www\.)?youtube\.com\/[A-Za-z\d._?%&+\-=\/#]*|(?:https?:\/\/)?youtu\.be\/[A-Za-z\d._?%&+\-=\/#]*",
-                        str(event.message).strip())[0]
+    msg_url = re.search(
+        r"(?:https?:\/\/)?(www\.)?youtube\.com\/[A-Za-z\d._?%&+\-=\/#]*|(?:https?:\/\/)?youtu\.be\/[A-Za-z\d._?%&+\-=\/#]*",
+        str(event.message).strip())[0]
 
     title = get_video_title(msg_url, IS_OVERSEA, resolver_proxy)
 
@@ -455,7 +459,8 @@ async def freyrjs(bot: Bot, event: Event):
     logger.info(result.stdout.decode())
     # 获取信息
     parsed_result = await parse_freyr_log(result.stdout.decode())
-    await freyr.send(Message(f"识别：{freyr_name}，{parsed_result['title']}--{parsed_result['artist']}\n{parsed_result['album']}"))
+    await freyr.send(
+        Message(f"识别：{freyr_name}，{parsed_result['title']}--{parsed_result['artist']}\n{parsed_result['album']}"))
     # 检查目录是否存在
     music_path = os.path.join(music_download_path, parsed_result['artist'], parsed_result['album'])
     if os.path.exists(music_path):
@@ -473,6 +478,7 @@ async def freyrjs(bot: Bot, event: Event):
     else:
         await freyr.send(Message(f"下载失败！没有找到{freyr_name}下载下来文件！"))
 
+
 def auto_determine_send_type(user_id: int, task: str):
     """
         判断是视频还是图片然后发送最后删除
@@ -487,6 +493,7 @@ def auto_determine_send_type(user_id: int, task: str):
         return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
                                           content=Message(MessageSegment.video(task)))
 
+
 async def upload_data_file(bot: Bot, event: Event, data: str):
     """
     上传群文件
@@ -500,7 +507,8 @@ async def upload_data_file(bot: Bot, event: Event, data: str):
     elif isinstance(event, PrivateMessageEvent):
         await upload_private_file(bot, user_id=event.user_id, file=data)
 
-async def upload_group_file(bot:Bot, group_id: int, file: str):
+
+async def upload_group_file(bot: Bot, group_id: int, file: str):
     try:
         await bot.upload_group_file(group_id=group_id, file=file, name="{:.0f}.mp4".format(time.time()))
     except (ActionFailed, NetworkError) as e:
@@ -513,16 +521,17 @@ async def upload_group_file(bot:Bot, group_id: int, file: str):
         elif isinstance(e, NetworkError):
             await bot.send_group_msg(group_id=group_id,
                                      message=Message(MessageSegment.text("[ERROR]文件上传失败\r\n[原因]  "
-                                                                             "上传超时(一般来说还在传,建议等待五分钟)")))
+                                                                         "上传超时(一般来说还在传,建议等待五分钟)")))
 
-async def upload_private_file(bot:Bot, user_id: int, file: str):
+
+async def upload_private_file(bot: Bot, user_id: int, file: str):
     try:
         await bot.upload_private_file(user_id=user_id, file=file, name="{:.0f}.mp4".format(time.time()))
     except (ActionFailed, NetworkError) as e:
         logger.error(e)
         if isinstance(e, NetworkError):
             await bot.send_private_msg(user_id=user_id, message=Message(MessageSegment.text(
-                    "[ERROR]  文件上传失败\r\n[原因]  上传超时(一般来说还在传,建议等待五分钟)")))
+                "[ERROR]  文件上传失败\r\n[原因]  上传超时(一般来说还在传,建议等待五分钟)")))
 
 
 async def auto_video_send(event: Event, data: str, is_lagrange: bool = False):

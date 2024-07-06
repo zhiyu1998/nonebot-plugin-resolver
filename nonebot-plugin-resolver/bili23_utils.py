@@ -87,3 +87,32 @@ def get_dynamic(dynamic_id: str):
         dynamic_src.append(download_img(pic['img_src']))
 
     return dynamic_desc, dynamic_src
+
+def extra_bili_info(video_info):
+    """
+        格式化视频信息
+    """
+    video_state = video_info['stat']
+    video_like, video_coin, video_favorite, video_share, video_view, video_danmaku, video_reply = video_state['like'], \
+    video_state['coin'], video_state['favorite'], video_state['share'], video_state['view'], video_state['danmaku'], \
+    video_state['reply']
+
+    video_data_map = {
+        "点赞": video_like,
+        "硬币": video_coin,
+        "收藏": video_favorite,
+        "分享": video_share,
+        "总播放量": video_view,
+        "弹幕数量": video_danmaku,
+        "评论": video_reply
+    }
+
+    video_info_result = ""
+    for key, value in video_data_map.items():
+        if int(value) > 10000:
+            formatted_value = f"{value / 10000:.1f}万"
+        else:
+            formatted_value = value
+        video_info_result += f"{key}: {formatted_value} | "
+
+    return video_info_result
