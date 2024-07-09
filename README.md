@@ -56,6 +56,7 @@ DOUYIN_CK='' # douyin's cookie, 格式：odin_tt=xxx;passport_fe_beating_status=
 IS_OVERSEA=False # 是否是海外服务器部署
 IS_LAGRANGE=False # 是否是拉格朗日（https://github.com/KonataDev/Lagrange.Core）
 resolver_proxy = "http://127.0.0.1:7890" # 代理
+VIDEO_DURATION_MAXIMUM = 480 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
 ```
 
 ## 🤺 交流群
