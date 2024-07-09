@@ -29,10 +29,14 @@ __plugin_meta__ = PluginMetadata(
 
 # 配置加载
 global_config = Config.parse_obj(get_driver().config.dict())
+# 🪜地址
 resolver_proxy: str = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
+# 是否是海外服务器
 IS_OVERSEA: bool = getattr(global_config, "is_oversea", False)
+# 是否是拉格朗日引擎
 IS_LAGRANGE: bool = getattr(global_config, "is_lagrange", False)
-
+# 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
+VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
 # 代理加载
 aiohttp_proxies = {
     'http': resolver_proxy,
@@ -130,17 +134,23 @@ async def bilibili(event: Event) -> None:
     video_info = httpx.get(
         f"{BILI_VIDEO_INFO}?bvid={video_id}" if video_id.startswith(
             "BV") else f"{BILI_VIDEO_INFO}?aid={video_id}", headers=header)
-    logger.info(video_info)
+    # logger.info(video_info)
     video_info = video_info.json()['data']
     if video_info is None:
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
         return
-    video_title, video_cover, video_desc = video_info['title'], video_info['pic'], video_info['desc']
+    video_title, video_cover, video_desc, video_duration = video_info['title'], video_info['pic'], video_info['desc'], video_info['duration']
 
     video_title = delete_boring_characters(video_title)
     # video_title = re.sub(r'[\\/:*?"<>|]', "", video_title)
-    await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
-        f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}"))
+    # 截断下载时间比较长的视频
+    if video_duration <= VIDEO_DURATION_MAXIMUM:
+        await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
+            f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}"))
+    else:
+        return await bili23.finish(
+            Message(MessageSegment.image(video_cover)) + Message(
+                f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
     video_url, audio_url = getDownloadUrl(url)
     # 下载视频和音频
