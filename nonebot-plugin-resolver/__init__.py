@@ -32,9 +32,9 @@ global_config = Config.parse_obj(get_driver().config.dict())
 # 🪜地址
 resolver_proxy: str = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
 # 是否是海外服务器
-IS_OVERSEA: bool = getattr(global_config, "is_oversea", False)
+IS_OVERSEA: bool = bool(getattr(global_config, "is_oversea", False))
 # 是否是拉格朗日引擎
-IS_LAGRANGE: bool = getattr(global_config, "is_lagrange", False)
+IS_LAGRANGE: bool = bool(getattr(global_config, "is_lagrange", False))
 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
 VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
 # 代理加载
