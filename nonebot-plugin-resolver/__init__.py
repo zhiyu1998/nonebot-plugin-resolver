@@ -279,34 +279,13 @@ async def tiktok(event: Event) -> None:
         # logger.info(url)
     else:
         url = re.search(url_reg, url)[0]
-    # strip是防止vm开头的tiktok解析出问题
-    id_video = get_id_video(url).strip("/")
-    logger.info(id_video)
+    title = get_video_title(url, IS_OVERSEA, resolver_proxy)
 
-    params = {
-        "iid": "7318518857994389254",
-        "device_id": "7318517321748022790",
-        "channel": "googleplay",
-        "app_name": "musical_ly",
-        "version_code": "300904",
-        "device_platform": "android",
-        "device_type": "ASUS_Z01QD",
-        "os_version": "9",
-        "aweme_id": id_video
-    }
+    await tik.send(Message(f"{GLOBAL_NICKNAME}识别：TikTok，{title}\n"))
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(TIKTOK_VIDEO, params=params, headers={
-            "User-Agent":
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
-        }, timeout=10)
-        data = response.json()['aweme_list'][0]
-        await tik.send(Message(f"{GLOBAL_NICKNAME}识别：tiktok, {data['desc']}"))
-        path = await download_video(data['video']['play_addr']['url_list'][0], proxy)
-        await tik.send(Message(MessageSegment.video(path)))
-        # 清除文件
-        os.unlink(f"{path}")
-        os.unlink(f"{path}.jpg")
+    target_tik_video_path = await download_ytb_video(url, IS_OVERSEA, os.getcwd(), resolver_proxy, 'tiktok')
+
+    await auto_video_send(event, target_tik_video_path, IS_LAGRANGE)
 
 
 @acfun.handle()

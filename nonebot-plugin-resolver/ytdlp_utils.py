@@ -17,9 +17,17 @@ def get_video_title(url, is_oversea, my_proxy=None):
     # 返回输出结果（视频标题）
     return result.stdout.strip()
 
-async def download_ytb_video(url, is_oversea, path, my_proxy=None):
+
+async def download_ytb_video(url, is_oversea, path, my_proxy=None, video_type='youtube'):
     # 构建命令
-    command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", "-f", "best[height<=720][ext=mp4]", "--merge-output-format", "mp4", url]
+    command = []
+    if video_type == 'youtube':
+        command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", "-f", "best[height<=720][ext=mp4]",
+                   "--merge-output-format",
+                   "mp4", url]
+    elif video_type == 'tiktok':
+        command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", url]
+
     if not is_oversea and my_proxy:
         command.insert(1, "--proxy")
         command.insert(2, my_proxy)
