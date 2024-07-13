@@ -64,11 +64,11 @@ R_GLOBAL_NICKNAME = "R插件极速版" # 解析前缀名
 <img src="./img/group.JPG" width="30%" height="30%">
 
 ## 🎉 使用 & 效果图
-![help](./img/example.webp)
-![help](./img/example2.webp)
-![help](./img/example3.webp)
-![help](./img/example4.webp)
-![help](./img/example5.webp)
+<img src="./img/example.webp" width="30%" height="30%">
+<img src="./img/example2.webp" width="30%" height="30%">
+<img src="./img/example3.webp" width="30%" height="30%">
+<img src="./img/example4.webp" width="30%" height="30%">
+<img src="./img/example5.webp" width="30%" height="30%">
 
 ## 贡献
 
