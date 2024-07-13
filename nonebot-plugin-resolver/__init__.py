@@ -90,20 +90,11 @@ async def bilibili(event: Event) -> None:
     # 正则匹配
     url_reg = "(http:|https:)\/\/www.bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
     b_short_rex = "(http:|https:)\/\/b23.tv\/[A-Za-z\d._?%&+\-=\/#]*"
-    b_mini_rex = r'b23\.tv\\\/([a-zA-Z0-9]+)'
     # BV处理
     if re.match(r'^BV[1-9a-zA-Z]{10}$', url):
         url = 'https://www.bilibili.com/video/' + url
-    # 处理小程序无法解析
-    if 'b23.tv' and 'QQ小程序' in url:
-        b_mini_url = re.search(b_mini_rex, url)
-        # if b_mini_url:
-        b_mini_url = 'https://b23.tv/' + b_mini_url.group(1)
-        # await bot.send(event, f"获取地址为：{b_mini_url}")
-        resp = httpx.get(b_mini_url, headers=header, follow_redirects=True)
-        url: str = str(resp.url)
-    # 处理短号问题
-    if 'b23.tv' in url:
+    # 处理短号、小程序问题
+    if 'b23.tv' in url or ('b23.tv' and 'QQ小程序' in url):
         b_short_url = re.search(b_short_rex, url)[0]
         resp = httpx.get(b_short_url, headers=header, follow_redirects=True)
         url: str = str(resp.url)

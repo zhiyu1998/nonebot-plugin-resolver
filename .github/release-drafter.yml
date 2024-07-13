@@ -1,8 +1,6 @@
 # Configuration for Release Drafter: https://github.com/toolmantim/release-drafter
-name-template: 'v$NEXT_PATCH_VERSION 🌈'
-tag-template: 'v$NEXT_PATCH_VERSION'
-version-template: $MAJOR.$MINOR.$PATCH
-# Emoji reference: https://gitmoji.carloscuesta.me/
+name-template: 'v$RESOLVED_VERSION 🌈'
+tag-template: 'v$RESOLVED_VERSION'
 categories:
   - title: '🚀 Features'
     labels:
@@ -40,12 +38,19 @@ categories:
     labels:
       - style
       - styles
-exclude-labels:
-  - reverted
-  - no-changelog
-  - skip-changelog
-  - invalid
-change-template: '* $TITLE (#$NUMBER) @$AUTHOR'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+version-resolver:
+  major:
+    labels:
+      - 'major'
+  minor:
+    labels:
+      - 'minor'
+  patch:
+    labels:
+      - 'patch'
+  default: patch
 template: |
   ## What’s Changed
   $CHANGES
