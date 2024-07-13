@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os.path
 from typing import cast
 
 from nonebot import on_regex, get_driver, logger
@@ -11,12 +12,12 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageE
 
 from .common_utils import *
 from .config import Config
-from .bili23_utils import getDownloadUrl, downloadBFile, mergeFileToMp4, get_dynamic, extra_bili_info
-from .tiktok_utills import get_id_video, generate_x_bogus_url
+from .bili23_utils import get_download_url, download_b_file, merge_file_to_mp4, get_dynamic, extra_bili_info
+from .tiktok_utills import generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
 from .freyrjs import parse_freyr_log, execute_freyr_command
-from .constants import URL_TYPE_CODE_DICT, BILI_VIDEO_INFO, DOUYIN_VIDEO, TIKTOK_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
+from .constants import URL_TYPE_CODE_DICT, BILI_VIDEO_INFO, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -143,23 +144,23 @@ async def bilibili(event: Event) -> None:
             Message(MessageSegment.image(video_cover)) + Message(
                 f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
-    video_url, audio_url = getDownloadUrl(url)
+    video_url, audio_url = get_download_url(url)
     # 下载视频和音频
     path = os.getcwd() + "/" + video_id
-    await asyncio.gather(
-        downloadBFile(video_url, f"{path}-video.m4s", logger.info),
-        downloadBFile(audio_url, f"{path}-audio.m4s", logger.info))
-    mergeFileToMp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4")
+    try:
+        await asyncio.gather(
+            download_b_file(video_url, f"{path}-video.m4s", logger.info),
+            download_b_file(audio_url, f"{path}-audio.m4s", logger.info))
+        merge_file_to_mp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4")
+    finally:
+        remove_res = remove_files([f"{video_id}-video.m4s", f"{video_id}-audio.m4s"])
+        logger.info(remove_res)
     # logger.info(os.getcwd())
     # 发送出去
     # logger.info(path)
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
     await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
     # logger.info(f'{path}-res.mp4')
-    # 清理文件
-    if os.path.exists(f"{path}-res.mp4.jpg"):
-        os.unlink(f"{path}-res.mp4.jpg")
-
 
 @douyin.handle()
 async def dy(bot: Bot, event: Event) -> None:
@@ -301,9 +302,6 @@ async def ac(event: Event) -> None:
     merge_ac_file_to_mp4(ts_names, output_file_name)
     # await acfun.send(Message(MessageSegment.video(f"{os.getcwd()}/{output_file_name}")))
     await auto_video_send(event, f"{os.getcwd()}/{output_file_name}", IS_LAGRANGE)
-    os.unlink(output_file_name)
-    os.unlink(output_file_name + ".jpg")
-
 
 @twit.handle()
 async def twitter(bot: Bot, event: Event):
@@ -351,7 +349,7 @@ async def twitter(bot: Bot, event: Event):
 
 
 @xhs.handle()
-async def redbook(bot: Bot, event: Event):
+async def xiaohongshu(bot: Bot, event: Event):
     """
         小红书解析
     :param event:
@@ -396,7 +394,6 @@ async def redbook(bot: Bot, event: Event):
         path = await download_video(video_url)
         # await xhs.send(Message(MessageSegment.video(path)))
         await auto_video_send(event, path, IS_LAGRANGE)
-        os.unlink(path)
         return
     # 发送图片
     links = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
@@ -474,18 +471,18 @@ def auto_determine_send_type(user_id: int, task: str):
                                           content=Message(MessageSegment.video(task)))
 
 
-async def upload_data_file(bot: Bot, event: Event, data: str):
+async def upload_data_file(bot: Bot, event: Event, data_path: str):
     """
     上传群文件
     :param bot:
     :param event:
-    :param data:
+    :param data_path:
     :return:
     """
     if isinstance(event, GroupMessageEvent):
-        await upload_group_file(bot, group_id=event.group_id, file=data)
+        await upload_group_file(bot, group_id=event.group_id, file=data_path)
     elif isinstance(event, PrivateMessageEvent):
-        await upload_private_file(bot, user_id=event.user_id, file=data)
+        await upload_private_file(bot, user_id=event.user_id, file=data_path)
 
 
 async def upload_group_file(bot: Bot, group_id: int, file: str):
@@ -514,29 +511,35 @@ async def upload_private_file(bot: Bot, user_id: int, file: str):
                 "[ERROR]  文件上传失败\r\n[原因]  上传超时(一般来说还在传,建议等待五分钟)")))
 
 
-async def auto_video_send(event: Event, data: str, is_lagrange: bool = False):
+async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
     """
     拉格朗日自动转换成上传
     :param event:
-    :param data:
+    :param data_path:
     :param is_lagrange:
     :return:
     """
-    bot: Bot = cast(Bot, current_bot.get())
+    try:
+        bot: Bot = cast(Bot, current_bot.get())
 
-    # 如果data以"http"开头，先下载视频
-    if data.startswith("http"):
-        data = await download_video(data)
+        # 如果data以"http"开头，先下载视频
+        if data_path.startswith("http"):
+            data_path = await download_video(data_path)
 
-    # 如果是Lagrange，则上传数据文件
-    if is_lagrange:
-        await upload_data_file(bot=bot, event=event, data=data)
-    else:
-        # 根据事件类型发送不同的消息
-        if isinstance(event, GroupMessageEvent):
-            await bot.send_group_msg(group_id=event.group_id, message=Message(MessageSegment.video(f'file://{data}')))
-        elif isinstance(event, PrivateMessageEvent):
-            await bot.send_private_msg(user_id=event.user_id, message=Message(MessageSegment.video(f'file://{data}')))
-
-    # 删除临时文件
-    os.unlink(data)
+        # 如果是Lagrange，则上传数据文件
+        if is_lagrange:
+            await upload_data_file(bot=bot, event=event, data=data_path)
+        else:
+            # 根据事件类型发送不同的消息
+            if isinstance(event, GroupMessageEvent):
+                await bot.send_group_msg(group_id=event.group_id, message=Message(MessageSegment.video(f'file://{data_path}')))
+            elif isinstance(event, PrivateMessageEvent):
+                await bot.send_private_msg(user_id=event.user_id, message=Message(MessageSegment.video(f'file://{data_path}')))
+    except Exception as e:
+        logger.error(f"下载出现错误，具体为\n{e}")
+    finally:
+        # 删除临时文件
+        if os.path.exists(data_path):
+            os.unlink(data_path)
+        if os.path.exists(data_path + '.jpg'):
+            os.unlink(data_path + '.jpg')

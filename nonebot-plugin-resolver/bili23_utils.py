@@ -13,7 +13,7 @@ header = {
 }
 
 
-def getDownloadUrl(url: str):
+def get_download_url(url: str):
     """
         爬取下载链接
     :param url:
@@ -29,44 +29,40 @@ def getDownloadUrl(url: str):
             return videoUrl, audioUrl
 
 
-async def downloadBFile(url, fullFileName, progressCallback):
+async def download_b_file(url, full_file_name, progress_callback):
     """
         下载视频文件和音频文件
     :param url:
-    :param fullFileName:
-    :param progressCallback:
+    :param full_file_name:
+    :param progress_callback:
     :return:
     """
     async with httpx.AsyncClient() as client:
         async with client.stream("GET", url, headers=header) as resp:
-            currentLen = 0
-            totalLen = int(resp.headers['content-length'])
-            print(totalLen)
-            with open(fullFileName, "wb") as f:
+            current_len = 0
+            total_len = int(resp.headers['content-length'])
+            print(total_len)
+            with open(full_file_name, "wb") as f:
                 async for chunk in resp.aiter_bytes():
-                    currentLen += len(chunk)
+                    current_len += len(chunk)
                     f.write(chunk)
-                    progressCallback(currentLen / totalLen)
+                    progress_callback(current_len / total_len)
 
 
-def mergeFileToMp4(vFullFileName: str, aFullFileName: str, outputFileName: str, shouldDelete=True):
+def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_name: str):
     """
         合并视频文件和音频文件
-    :param vFullFileName:
-    :param aFullFileName:
-    :param outputFileName:
-    :param shouldDelete:
+    :param v_full_file_name:
+    :param a_full_file_name:
+    :param output_file_name:
     :return:
     """
     # 调用ffmpeg
-    subprocess.call(f'ffmpeg -y -i "{vFullFileName}" -i "{aFullFileName}" -c copy "{outputFileName}"', shell=True,
+    subprocess.call(f'ffmpeg -y -i "{v_full_file_name}" -i "{a_full_file_name}" -c copy "{output_file_name}"',
+                    shell=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     )
-    # 删除临时文件
-    if shouldDelete:
-        os.unlink(vFullFileName)
-        os.unlink(aFullFileName)
 
 
 def get_dynamic(dynamic_id: str):

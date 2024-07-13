@@ -4,9 +4,12 @@ import os
 import re
 import time
 
+from typing import List, Dict
+
 header = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (HTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36'
 }
+
 
 async def download_video(url, proxy: str = None):
     """
@@ -42,7 +45,7 @@ async def download_video(url, proxy: str = None):
         return None
 
 
-async def download_img(url: str, path: str = '', proxy: str = None, session = None) -> str:
+async def download_img(url: str, path: str = '', proxy: str = None, session=None) -> str:
     """
     异步下载（aiohttp）网络图片，并支持通过代理下载。
     如果未指定path，则图片将保存在当前工作目录并以图片的文件名命名。
@@ -72,6 +75,7 @@ async def download_img(url: str, path: str = '', proxy: str = None, session = No
                     f.write(data)
     return path
 
+
 def delete_boring_characters(sentence):
     """
         去除标题的特殊字符
@@ -79,3 +83,28 @@ def delete_boring_characters(sentence):
     :return:
     """
     return re.sub('[0-9’!"∀〃#$%&\'()*+,-./:;<=>?@，。?★、…【】《》？“”‘’！[\\]^_`{|}~～\s]+', "", sentence)
+
+
+def remove_files(file_paths: List[str]) -> Dict[str, str]:
+    """
+    根据路径删除文件
+
+    Parameters:
+    *file_paths (str): 要删除的一个或多个文件路径
+
+    Returns:
+    dict: 一个以文件路径为键、删除状态为值的字典
+    """
+    results = {}
+
+    for file_path in file_paths:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                results[file_path] = 'remove'
+            except Exception as e:
+                results[file_path] = f'error: {e}'
+        else:
+            results[file_path] = 'don\'t exist'
+
+    return results

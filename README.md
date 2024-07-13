@@ -52,11 +52,11 @@ apt-get install atomicparsley
 在 nonebot2 项目的`.env`文件中添加下表中的可选配置
 
 ```
-DOUYIN_CK='' # douyin's cookie，最佳实践教程：https://thumbsnap.com/rKxUGKqp ，格式：odin_tt=xxx;passport_fe_beating_status=xxx;sid_guard=xxx;uid_tt=xxx;uid_tt_ss=xxx;sid_tt=xxx;sessionid=xxx;sessionid_ss=xxx;sid_ucp_v1=xxx;ssid_ucp_v1=xxx;passport_assist_user=xxx;ttwid=xxx;
-IS_OVERSEA=False # True/False，是否是海外服务器部署
-IS_LAGRANGE=False # True/False，是否是拉格朗日（https://github.com/KonataDev/Lagrange.Core）
-resolver_proxy = "http://127.0.0.1:7890" # 代理
-VIDEO_DURATION_MAXIMUM = 480 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
+DOUYIN_CK='odin_tt=4365b7fc5681ac8702a0adfcbe9733bcd7c5c1ed61993a02640bbe4f2cc56f419ccbeda80d3560686d9a64f9ea5d587f;passport_fe_beating_status=true;sid_guard=1796d8581585653a050884d09e26008b%7C1715415372%7C5183998%7CWed%2C+10-Jul-2024+08%3A16%3A10+GMT;uid_tt=7199d412b0d7cee4430070a8cfc8320f;uid_tt_ss=7199d412b0d7cee4430070a8cfc8320f;sid_tt=1796d8581585653a050884d09e26008b;sessionid=1796d8581585653a050884d09e26008b;sessionid_ss=1796d8581585653a050884d09e26008b;sid_ucp_v1=1.0.0-KGQ3NDhkNzRlYjU5YWI0YmQ4YmExZmVkOGFhOGRiNDg1NDNkMzkxNTAKGwi_5uDl4oy6AxDM0vyxBhjvMSAMOAJA8QdIBBoCaGwiIDE3OTZkODU4MTU4NTY1M2EwNTA4ODRkMDllMjYwMDhi;ssid_ucp_v1=1.0.0-KGQ3NDhkNzRlYjU5YWI0YmQ4YmExZmVkOGFhOGRiNDg1NDNkMzkxNTAKGwi_5uDl4oy6AxDM0vyxBhjvMSAMOAJA8QdIBBoCaGwiIDE3OTZkODU4MTU4NTY1M2EwNTA4ODRkMDllMjYwMDhi;passport_assist_user=CkGuJEZPpgFQWNMCABb2GaOC-Ti8e0UuW4QgdpP--GoBlq1KrfwWwP_QaJejxEtNd77iqpXX0czej9pjLoexN_qcyxpKCjxwi9cIHJwQc4xpNFKIDoabUFW0O9dmh5yta1sCQR0WbZTaov2ldfGGIoELE5m002kdncRlUiDU_hh0mqAQtIDRDRiJr9ZUIAEiAQNAdRnC;ttwid=1%7C1oSBGQv3H2RaIGU0T5qWdSIbXmqLC8DQ2l_8cXcvoaE%7C1715415325%7C790ecd495fe12b8c3056a6562f14888ca137d14aa01b2534e3f205fb6c8d82a1;' # douyin's cookie, 格式：odin_tt=xxx;passport_fe_beating_status=xxx;sid_guard=xxx;uid_tt=xxx;uid_tt_ss=xxx;sid_tt=xxx;sessionid=xxx;sessionid_ss=xxx;sid_ucp_v1=xxx;ssid_ucp_v1=xxx;passport_assist_user=xxx;ttwid=xxx;
+IS_OVERSEA=False # 是否是海外服务器部署
+IS_LAGRANGE=False # 是否是拉格朗日（https://github.com/KonataDev/Lagrange.Core）
+RESOLVER_PROXY = "http://127.0.0.1:7890" # 代理
+R_GLOBAL_NICKNAME = "R插件极速版" # 解析前缀名
 ```
 
 ## 🤺 交流群
