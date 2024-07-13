@@ -1,20 +1,24 @@
 import subprocess
+from nonebot import logger
 
-def get_video_title(url, is_oversea, my_proxy=None):
+
+def get_video_title(url: str, is_oversea: bool, my_proxy=None) -> str:
     # 构建命令
     command = ["yt-dlp", "--get-title", url]
     if not is_oversea and my_proxy:
         command += ["--proxy", my_proxy]
 
     # 执行命令并捕获输出
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8')
 
     # 检查是否有错误
     if result.returncode != 0:
-        print("Error:", result.stderr)
-        return None
+        logger.error("Error:", result.stderr)
+        return '-'
 
     # 返回输出结果（视频标题）
+    if result.stdout is None:
+        return '-'
     return result.stdout.strip()
 
 
