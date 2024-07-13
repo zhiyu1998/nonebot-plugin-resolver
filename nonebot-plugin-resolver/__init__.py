@@ -26,6 +26,7 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/zhiyu1998/nonebot-plugin-resolver",
     config=Config,
+    supported_adapters={"~onebot.v11", "~qq"}
 )
 
 # 配置加载
@@ -131,7 +132,8 @@ async def bilibili(event: Event) -> None:
     if video_info is None:
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
         return
-    video_title, video_cover, video_desc, video_duration = video_info['title'], video_info['pic'], video_info['desc'], video_info['duration']
+    video_title, video_cover, video_desc, video_duration = video_info['title'], video_info['pic'], video_info['desc'], \
+    video_info['duration']
 
     video_title = delete_boring_characters(video_title)
     # video_title = re.sub(r'[\\/:*?"<>|]', "", video_title)
@@ -161,6 +163,7 @@ async def bilibili(event: Event) -> None:
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
     await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
     # logger.info(f'{path}-res.mp4')
+
 
 @douyin.handle()
 async def dy(bot: Bot, event: Event) -> None:
@@ -302,6 +305,7 @@ async def ac(event: Event) -> None:
     merge_ac_file_to_mp4(ts_names, output_file_name)
     # await acfun.send(Message(MessageSegment.video(f"{os.getcwd()}/{output_file_name}")))
     await auto_video_send(event, f"{os.getcwd()}/{output_file_name}", IS_LAGRANGE)
+
 
 @twit.handle()
 async def twitter(bot: Bot, event: Event):
@@ -532,9 +536,11 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
         else:
             # 根据事件类型发送不同的消息
             if isinstance(event, GroupMessageEvent):
-                await bot.send_group_msg(group_id=event.group_id, message=Message(MessageSegment.video(f'file://{data_path}')))
+                await bot.send_group_msg(group_id=event.group_id,
+                                         message=Message(MessageSegment.video(f'file://{data_path}')))
             elif isinstance(event, PrivateMessageEvent):
-                await bot.send_private_msg(user_id=event.user_id, message=Message(MessageSegment.video(f'file://{data_path}')))
+                await bot.send_private_msg(user_id=event.user_id,
+                                           message=Message(MessageSegment.video(f'file://{data_path}')))
     except Exception as e:
         logger.error(f"下载出现错误，具体为\n{e}")
     finally:
