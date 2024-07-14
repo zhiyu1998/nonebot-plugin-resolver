@@ -97,7 +97,7 @@ async def bilibili(event: Event) -> None:
         url = 'https://www.bilibili.com/video/' + url
     # 处理短号、小程序问题
     if 'b23.tv' in url or ('b23.tv' and 'QQ小程序' in url):
-        b_short_url = re.search(b_short_rex, url)[0]
+        b_short_url = re.search(b_short_rex, url.replace("\\", ""))[0]
         resp = httpx.get(b_short_url, headers=header, follow_redirects=True)
         url: str = str(resp.url)
     else:
