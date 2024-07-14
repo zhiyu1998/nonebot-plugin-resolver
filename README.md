@@ -59,6 +59,8 @@ RESOLVER_PROXY = "http://127.0.0.1:7890" # 代理
 R_GLOBAL_NICKNAME = "R插件极速版" # 解析前缀名
 ```
 
+<iframe width="560" height="315" src="https://cdn2.thumbsnap.com/i/114/75/rKxUGKqp.mp4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 ## 🤺 交流群
 
 <img src="./img/group.JPG" width="30%" height="30%">
