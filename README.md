@@ -61,6 +61,8 @@ R_GLOBAL_NICKNAME = "R插件极速版" # 解析前缀名
 
 ## 🤳🏿 在线观看如何获取 Cookie
 
+> 由群友 `@麦满分` 提供
+
 https://github.com/user-attachments/assets/7ead6d62-a36c-4e8d-bb5d-6666749dfb26
 
 ## 🤺 交流群
