@@ -52,12 +52,14 @@ apt-get install atomicparsley
 在 nonebot2 项目的`.env`文件中添加下表中的可选配置
 
 ```
-DOUYIN_CK='' # douyin's cookie, 快速教程：https://thumbsnap.com/rKxUGKqp, 格式：odin_tt=xxx;passport_fe_beating_status=xxx;sid_guard=xxx;uid_tt=xxx;uid_tt_ss=xxx;sid_tt=xxx;sessionid=xxx;sessionid_ss=xxx;sid_ucp_v1=xxx;ssid_ucp_v1=xxx;passport_assist_user=xxx;ttwid=xxx;
+DOUYIN_CK='' # douyin's cookie, 格式：odin_tt=xxx;passport_fe_beating_status=xxx;sid_guard=xxx;uid_tt=xxx;uid_tt_ss=xxx;sid_tt=xxx;sessionid=xxx;sessionid_ss=xxx;sid_ucp_v1=xxx;ssid_ucp_v1=xxx;passport_assist_user=xxx;ttwid=xxx;
 IS_OVERSEA=False # 是否是海外服务器部署
 IS_LAGRANGE=False # 是否是拉格朗日（https://github.com/KonataDev/Lagrange.Core）
 RESOLVER_PROXY = "http://127.0.0.1:7890" # 代理
 R_GLOBAL_NICKNAME = "R插件极速版" # 解析前缀名
 ```
+
+## 🤳🏿 在线观看如何获取 Cookie
 
 https://github.com/user-attachments/assets/7ead6d62-a36c-4e8d-bb5d-6666749dfb26
 
