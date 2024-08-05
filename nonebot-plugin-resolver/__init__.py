@@ -376,7 +376,11 @@ async def xiaohongshu(bot: Bot, event: Event):
     if "xhslink" in msg_url:
         msg_url = httpx.get(msg_url, headers=headers, follow_redirects=True).url
         msg_url = str(msg_url)
-    xhs_id = re.search(r'/explore/(\w+)', msg_url) or re.search(r'/discovery/item/(\w+)', msg_url)
+    xhs_id = re.search(r'/explore/(\w+)', msg_url)
+    if not xhs_id:
+        xhs_id = re.search(r'/discovery/item/(\w+)', msg_url)
+    if not xhs_id:
+        xhs_id = re.search(r'source=note&noteId=(\w+)', msg_url)
     xhs_id = xhs_id[1]
 
     html = httpx.get(f'{XHS_REQ_LINK}{xhs_id}', headers=headers).text
