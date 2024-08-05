@@ -37,8 +37,14 @@ nb plugin install nonebot-plugin-resolver
 ```
 pip install --upgrade nonebot-plugin-resolver
 ```
-
-3. 【可选】安装`am`解析必要的依赖
+3. 【必要】安装必要组件 FFmpeg
+```shell
+# ubuntu
+sudo apt-get install ffmpeg
+# 其他linux参考（群友推荐）：https://gitee.com/baihu433/ffmpeg
+# Windows 参考：https://www.jianshu.com/p/5015a477de3c
+```
+4. 【可选】安装`am`&`Spotify`解析必要的依赖
 ```shell
 npm install -g freyr
 # 或者你有yarn的话可以使用
@@ -46,7 +52,25 @@ yarn global add freyr
 # 接着安装它的依赖
 apt-get install atomicparsley
 ```
+5. 【可选】安装`TK`&`YB`解析必要依赖 不建议直接使用`apt`不是最新版
+```shell
+# debian 海外
+curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ~/.local/bin/yt-dlp
+chmod a+rx ~/.local/bin/yt-dlp
+# debian 国内
+curl -L https://ghproxy.net/https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ~/.local/bin/yt-dlp
+chmod a+rx ~/.local/bin/yt-dlp
 
+# 将/home/YtDlpHome/yt-dlp添加到环境变量（下面二选一）
+vim ~/.bashrc  # 如果你使用 bash
+vim ~/.zshrc   # 如果你使用 zsh
+# 添加到最后一行
+export PATH="/home/YtDlpHome:$PATH"
+
+# 刷新环境变量即可
+source ~/.bashrc  # 如果你使用 bash
+source ~/.zshrc   # 如果你使用 zsh
+```
 ## ⚙️ 配置
 
 在 nonebot2 项目的`.env`文件中添加下表中的可选配置
