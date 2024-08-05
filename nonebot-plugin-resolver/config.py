@@ -3,6 +3,7 @@ from typing import Optional
 
 
 class Config(BaseModel, extra=Extra.ignore):
+    xhs_ck: Optional[str] = ''
     douyin_ck: Optional[str] = ''
     is_oversea: Optional[bool] = False
     is_lagrange: Optional[bool] = False
