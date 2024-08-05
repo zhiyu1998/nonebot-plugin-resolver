@@ -409,7 +409,11 @@ async def xiaohongshu(bot: Bot, event: Event):
                     download_img(item['urlDefault'], f'{os.getcwd()}/{str(index)}.jpg', session=session)))
             links_path = await asyncio.gather(*aio_task)
     elif type == 'video':
-        video_url = note_data['video']['media']['stream']['h264'][0]['masterUrl']
+        # ⚠️ 废弃，这是一条解析有水印的视频
+        # video_url = note_data['video']['video']['stream']['h264'][0]['masterUrl']
+
+        # 解析无水印视频video.consumer.originVideoKey}
+        video_url = f'http://sns-video-bd.xhscdn.com/{note_data['video']['consumer']['originVideoKey']}'
         path = await download_video(video_url)
         # await xhs.send(Message(MessageSegment.video(path)))
         await auto_video_send(event, path, IS_LAGRANGE)
