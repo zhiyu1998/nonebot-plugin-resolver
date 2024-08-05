@@ -361,10 +361,16 @@ async def xiaohongshu(bot: Bot, event: Event):
     """
     msg_url = re.search(r"(http:|https:)\/\/(xhslink|(www\.)xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
                         str(event.message).strip())[0]
+    # 如果没有设置xhs的ck就结束，因为获取不到
+    xhs_ck = getattr(global_config, "xhs_ck", "")
+    if xhs_ck == "":
+        logger.error(global_config)
+        await xhs.send(Message(f"{GLOBAL_NICKNAME}识别内容来自：【小红书】\n无法获取到管理员设置的小红书ck！"))
+        return
     # 请求头
     headers = {
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'cookie': '',
+        'cookie': xhs_ck,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 UBrowser/6.2.4098.3 Safari/537.36',
     }
     if "xhslink" in msg_url:
@@ -374,7 +380,12 @@ async def xiaohongshu(bot: Bot, event: Event):
     xhs_id = xhs_id[1]
 
     html = httpx.get(f'{XHS_REQ_LINK}{xhs_id}', headers=headers).text
-    response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
+    #response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
+    try:
+        response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
+    except IndexError:
+        await xhs.send(Message(f"{GLOBAL_NICKNAME}识别内容来自：【小红书】\n当前ck已失效，请联系管理员重新设置的小红书ck！"))
+        return
     response_json = response_json.replace("undefined", "null")
     response_json = json.loads(response_json)
     note_data = response_json['note']['noteDetailMap'][xhs_id]['note']
