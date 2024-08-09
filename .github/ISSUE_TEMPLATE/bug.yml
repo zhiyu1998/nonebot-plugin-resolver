@@ -43,12 +43,13 @@ body:
       value: |
         [在这里上传图片]
   - type: dropdown
-    id: version
+    id: system
     attributes:
-      label: 版本
-      description: 你当前正在使用我们软件的哪个版本/分支？
+      label: 系统
+      description: 你当前使用的系统？
       options:
-        - 1.7.1 (默认)
-        - 1.7.1 (最新)
+        - windows
+        - linux
+        - macos
     validations:
       required: true
