@@ -26,9 +26,7 @@ async def download_ytb_video(url, is_oversea, path, my_proxy=None, video_type='y
     # 构建命令
     command = []
     if video_type == 'youtube':
-        command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", "-f", "best[height<=720][ext=mp4]",
-                   "--merge-output-format",
-                   "mp4", url]
+        command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", "--merge-output-format", "mp4", url]
     elif video_type == 'tiktok':
         command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", url]
 
