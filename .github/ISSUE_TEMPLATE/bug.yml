@@ -49,6 +49,19 @@ body:
     validations:
       required: true
   - type: dropdown
+    id: adapterType
+    attributes:
+      label: 适配器类型
+      description: 你当前使用的适配器类型？
+      options:
+        - napcat
+        - lagrange
+        - LLOneBot
+        - go-cqhttp
+        - icqq或者其他
+    validations:
+      required: true
+  - type: dropdown
     id: pythonId
     attributes:
       label: Python版本
