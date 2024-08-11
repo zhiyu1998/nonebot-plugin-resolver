@@ -101,6 +101,15 @@ https://github.com/user-attachments/assets/7ead6d62-a36c-4e8d-bb5d-6666749dfb26
 <img src="./img/example4.webp" width="50%" height="50%">
 <img src="./img/example5.webp" width="50%" height="50%">
 
+## 开发 && 发版
+
+发版 Action:
+```shell
+git tag <tag_name>
+
+git push origin --tags
+```
+
 ## 贡献
 
 同时感谢以下开发者对 `Nonebot - R插件` 作出的贡献：
