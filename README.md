@@ -81,7 +81,8 @@ DOUYIN_CK='' # douyin's cookie, 格式：odin_tt=xxx;passport_fe_beating_status=
 IS_OVERSEA=False # 是否是海外服务器部署
 IS_LAGRANGE=False # 是否是拉格朗日（https://github.com/KonataDev/Lagrange.Core）
 RESOLVER_PROXY = "http://127.0.0.1:7890" # 代理
-R_GLOBAL_NICKNAME = "R插件极速版" # 解析前缀名
+R_GLOBAL_NICKNAME="大橘" # 解析前缀名
+BILI_SESSDATA='' # bilibili sessdata 填写后可附加: 总结等功能
 ```
 
 ## 🤳🏿 在线观看如何获取 Cookie
