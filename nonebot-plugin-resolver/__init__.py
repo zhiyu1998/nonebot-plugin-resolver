@@ -184,14 +184,14 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
     await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
     # logger.info(f'{path}-res.mp4')
-    # 总结模块
     if BILI_SESSDATA != '':
         ai_conclusion = await v.get_ai_conclusion(await v.get_cid(0))
-        send_forword_summary = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                   content=Message(MessageSegment.text(item)))
-        for item in ["bilibili AI总结", ai_conclusion['model_result']['summary']]]
+        if ai_conclusion['model_result']['summary'] != '':
+            send_forword_summary = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
+                                                               content=Message(MessageSegment.text(item)))
+                                    for item in ["bilibili AI总结", ai_conclusion['model_result']['summary']]]
 
-        await bili23.send(Message(send_forword_summary))
+            await bili23.send(Message(send_forword_summary))
 
 
 @douyin.handle()
