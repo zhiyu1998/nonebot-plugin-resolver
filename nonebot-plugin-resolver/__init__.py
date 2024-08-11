@@ -538,7 +538,7 @@ async def upload_private_file(bot: Bot, user_id: int, file: str):
 
 async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
     """
-    拉格朗日自动转换成上传
+    拉格朗日自动转换成CQ码发送
     :param event:
     :param data_path:
     :param is_lagrange:
@@ -547,14 +547,15 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
     try:
         bot: Bot = cast(Bot, current_bot.get())
 
-        # 如果data以"http"开头，先下载视频
-        if data_path.startswith("http"):
-            data_path = await download_video(data_path)
-
-        # 如果是Lagrange，则上传数据文件
+        # 如果是Lagrange，转换成CQ码发送
         if is_lagrange:
-            await upload_data_file(bot=bot, event=event, data=data_path)
+            cq_code = f'[CQ:video,file={data_path}]'
+            await bot.send(event, Message(cq_code))
         else:
+            # 如果data以"http"开头，先下载视频
+            if data_path.startswith("http"):
+                data_path = await download_video(data_path)
+
             # 根据事件类型发送不同的消息
             if isinstance(event, GroupMessageEvent):
                 await bot.send_group_msg(group_id=event.group_id,
