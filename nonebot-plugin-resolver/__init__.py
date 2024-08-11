@@ -2,6 +2,9 @@ import asyncio
 import json
 import os.path
 from typing import cast
+from bilibili_api import video, Credential
+from bilibili_api.opus import Opus
+from bilibili_api.video import VideoDownloadURLDataDetecter
 
 from nonebot import on_regex, get_driver, logger
 from nonebot.exception import ActionFailed, NetworkError
@@ -12,12 +15,12 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageE
 
 from .common_utils import *
 from .config import Config
-from .bili23_utils import get_download_url, download_b_file, merge_file_to_mp4, get_dynamic, extra_bili_info
+from .bili23_utils import download_b_file, merge_file_to_mp4, extra_bili_info
 from .tiktok_utills import generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
 from .freyrjs import parse_freyr_log, execute_freyr_command
-from .constants import URL_TYPE_CODE_DICT, BILI_VIDEO_INFO, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
+from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -31,6 +34,9 @@ __plugin_meta__ = PluginMetadata(
 
 # 配置加载
 global_config = Config.parse_obj(get_driver().config.dict())
+logger.info(f"keys: {global_config}")
+# 全局名称
+GLOBAL_NICKNAME: str = str(getattr(global_config, "r_global_nickname", "R插件极速版"))
 # 🪜地址
 resolver_proxy: str = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
 # 是否是海外服务器
@@ -39,6 +45,12 @@ IS_OVERSEA: bool = bool(getattr(global_config, "is_oversea", False))
 IS_LAGRANGE: bool = bool(getattr(global_config, "is_lagrange", False))
 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
 VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
+# 哔哩哔哩的 SESSDATA
+BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
+logger.info(f"session: {BILI_SESSDATA}")
+# 构建哔哩哔哩的Credential
+credential = Credential(sessdata=BILI_SESSDATA)
+
 # 代理加载
 aiohttp_proxies = {
     'http': resolver_proxy,
@@ -72,11 +84,8 @@ freyr = on_regex(
     r"(.*)(music.apple.com|open.spotify.com)"
 )
 
-GLOBAL_NICKNAME = "R插件极速版"
-
-
 @bili23.handle()
-async def bilibili(event: Event) -> None:
+async def bilibili(bot: Bot, event: Event) -> None:
     """
         哔哩哔哩解析
     :param event:
@@ -103,40 +112,49 @@ async def bilibili(event: Event) -> None:
     else:
         url: str = re.search(url_reg, url)[0]
     # 发现解析的是动态，转移一下
-    if 't.bilibili.com' in url:
+    if ('t.bilibili.com' in url or 'opus' in url) and BILI_SESSDATA != '':
         # 去除多余的参数
         if '?' in url:
             url = url[:url.index('?')]
-        dynamic_id = re.search(r'[^/]+(?!.*/)', url)[0]
-        dynamic_desc, dynamic_src = get_dynamic(dynamic_id)
-        if len(dynamic_src) > 0:
-            await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站动态，{dynamic_desc}"))
-            paths = await asyncio.gather(*dynamic_src)
-            await asyncio.gather(*[bili23.send(Message(f"[CQ:image,file=file:///{path}]")) for path in paths])
-            # 刪除文件
-            for temp in paths:
-                # logger.info(f'{temp}')
-                os.unlink(temp)
-        # 跳出函数
+        dynamic_id = int(re.search(r'[^/]+(?!.*/)', url)[0])
+        dynamic_info = await Opus(dynamic_id, credential).get_info()
+        # with open('data.json', 'w') as f:
+        #     json.dump(dynamic_info, f)
+        if dynamic_info is not None:
+            title = dynamic_info['item']['basic']['title']
+            paragraphs = []
+            for module in dynamic_info['item']['modules']:
+                if 'module_content' in module:
+                    paragraphs = module['module_content']['paragraphs']
+                    break
+            desc = paragraphs[0]['text']['nodes'][0]['word']['words']
+            pics = paragraphs[1]['pic']['pics']
+            await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站动态，{title}\n{desc}"))
+            send_pics = []
+            for pic in pics:
+                img = pic['url']
+                send_pics.append(MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
+                                            content=Message(MessageSegment.image(img))))
+            # 发送异步后的数据
+            if isinstance(event, GroupMessageEvent):
+                await bot.send_group_forward_msg(group_id=event.group_id, messages=send_pics)
+            else:
+                await bot.send_private_forward_msg(user_id=event.user_id, messages=send_pics)
         return
 
     # 获取视频信息
     # logger.error(url)
     video_id = re.search(r"video\/[^\?\/ ]+", url)[0].split('/')[1]
     # logger.error(video_id)
-    video_info = httpx.get(
-        f"{BILI_VIDEO_INFO}?bvid={video_id}" if video_id.startswith(
-            "BV") else f"{BILI_VIDEO_INFO}?aid={video_id}", headers=header)
-    # logger.info(video_info)
-    video_info = video_info.json()['data']
+    v = video.Video(video_id)
+    video_info = await v.get_info()
     if video_info is None:
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
         return
     video_title, video_cover, video_desc, video_duration = video_info['title'], video_info['pic'], video_info['desc'], \
     video_info['duration']
-
+    # 删除特殊字符
     video_title = delete_boring_characters(video_title)
-    # video_title = re.sub(r'[\\/:*?"<>|]', "", video_title)
     # 截断下载时间比较长的视频
     if video_duration <= VIDEO_DURATION_MAXIMUM:
         await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
@@ -146,7 +164,10 @@ async def bilibili(event: Event) -> None:
             Message(MessageSegment.image(video_cover)) + Message(
                 f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
-    video_url, audio_url = get_download_url(url)
+    download_url_data = await v.get_download_url(0)
+    detecter = VideoDownloadURLDataDetecter(download_url_data)
+    streams = detecter.detect_best_streams()
+    video_url, audio_url = streams[0].url, streams[1].url
     # 下载视频和音频
     path = os.getcwd() + "/" + video_id
     try:
@@ -163,6 +184,14 @@ async def bilibili(event: Event) -> None:
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
     await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
     # logger.info(f'{path}-res.mp4')
+    # 总结模块
+    if BILI_SESSDATA != '':
+        ai_conclusion = await v.get_ai_conclusion(await v.get_cid(0))
+        send_forword_summary = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
+                                   content=Message(MessageSegment.text(item)))
+        for item in ["bilibili AI总结", ai_conclusion['model_result']['summary']]]
+
+        await bili23.send(Message(send_forword_summary))
 
 
 @douyin.handle()
@@ -538,7 +567,7 @@ async def upload_private_file(bot: Bot, user_id: int, file: str):
 
 async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
     """
-    拉格朗日自动转换成CQ码发送
+    拉格朗日自动转换成上传
     :param event:
     :param data_path:
     :param is_lagrange:
@@ -547,15 +576,14 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
     try:
         bot: Bot = cast(Bot, current_bot.get())
 
-        # 如果是Lagrange，转换成CQ码发送
-        if is_lagrange:
-            cq_code = f'[CQ:video,file={data_path}]'
-            await bot.send(event, Message(cq_code))
-        else:
-            # 如果data以"http"开头，先下载视频
-            if data_path.startswith("http"):
-                data_path = await download_video(data_path)
+        # 如果data以"http"开头，先下载视频
+        if data_path.startswith("http"):
+            data_path = await download_video(data_path)
 
+        # 如果是Lagrange，则上传数据文件
+        if is_lagrange:
+            await upload_data_file(bot=bot, event=event, data=data_path)
+        else:
             # 根据事件类型发送不同的消息
             if isinstance(event, GroupMessageEvent):
                 await bot.send_group_msg(group_id=event.group_id,
