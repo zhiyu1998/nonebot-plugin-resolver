@@ -2,7 +2,7 @@ import asyncio
 import json
 import os.path
 from typing import cast, Iterable, Union
-from bilibili_api import video, Credential
+from bilibili_api import video, Credential, live
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter
 
@@ -98,7 +98,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # 消息
     url: str = str(event.message).strip()
     # 正则匹配
-    url_reg = "(http:|https:)\/\/www.bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
+    url_reg = "(http:|https:)\/\/(www|live).bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
     b_short_rex = "(http:|https:)\/\/b23.tv\/[A-Za-z\d._?%&+\-=\/#]*"
     # BV处理
     if re.match(r'^BV[1-9a-zA-Z]{10}$', url):
@@ -134,6 +134,16 @@ async def bilibili(bot: Bot, event: Event) -> None:
                 send_pics.append(make_node_segment(bot.self_id, MessageSegment.image(img)))
             # 发送异步后的数据
             await send_both(bot, event, send_pics)
+        return
+    # 直播间识别
+    if 'live' in url:
+        # https://live.bilibili.com/30528999?hotRank=0
+        room_id = re.search(r'\/(\d+)$', url).group(1)
+        room = live.LiveRoom(room_display_id=int(room_id))
+        room_info = (await room.get_room_info())['room_info']
+        title, cover, keyframe = room_info['title'], room_info['cover'], room_info['keyframe']
+        await bili23.send(Message([MessageSegment.image(cover), MessageSegment.image(keyframe),
+                                   MessageSegment.text(f"{GLOBAL_NICKNAME}识别：哔哩哔哩直播，{title}")]))
         return
 
     # 获取视频信息
