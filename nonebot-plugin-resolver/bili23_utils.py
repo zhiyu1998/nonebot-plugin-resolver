@@ -1,33 +1,13 @@
 import httpx
-import re
-import json
 import subprocess
-import os
 
-from .common_utils import download_img
+from nonebot import logger
 
 header = {
     'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
     'referer': 'https://www.bilibili.com',
 }
-
-
-def get_download_url(url: str):
-    """
-        爬取下载链接
-    :param url:
-    :return:
-    """
-    with httpx.Client(follow_redirects=True) as client:
-        resp = client.get(url, headers=header)
-        info = re.search(r"<script>window\.__playinfo__=({.*})<\/script><script>", resp.text)[1]
-        res = json.loads(info)
-        videoUrl = res["data"]["dash"]["video"][0]["baseUrl"] or res["data"]["dash"]["video"][0]["backupUrl"][0]
-        audioUrl = res["data"]["dash"]["audio"][0]["baseUrl"] or res["data"]["dash"]["audio"][0]["backupUrl"][0]
-        if videoUrl != "" and audioUrl != "":
-            return videoUrl, audioUrl
-
 
 async def download_b_file(url, full_file_name, progress_callback):
     """
@@ -46,7 +26,7 @@ async def download_b_file(url, full_file_name, progress_callback):
                 async for chunk in resp.aiter_bytes():
                     current_len += len(chunk)
                     f.write(chunk)
-                    progress_callback(current_len / total_len)
+                    progress_callback(f'下载进度：{round(current_len / total_len, 2)}')
 
 
 def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_name: str):
@@ -57,34 +37,13 @@ def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_
     :param output_file_name:
     :return:
     """
+    logger.info(f'正在合并：{[output_file_name]}')
     # 调用ffmpeg
     subprocess.call(f'ffmpeg -y -i "{v_full_file_name}" -i "{a_full_file_name}" -c copy "{output_file_name}"',
                     shell=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     )
-
-
-def get_dynamic(dynamic_id: str):
-    """
-        获取哔哩哔哩动态
-    :param dynamic_id:
-    :return:
-    """
-    dynamic_api = f'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/get_dynamic_detail?dynamic_id={dynamic_id}'
-    resp = httpx.get(dynamic_api, headers=header)
-
-    dynamic_json = json.loads(resp.content)['data']['card']
-    card = json.loads(dynamic_json['card'])
-    dynamic_origin = card['item']
-
-    dynamic_desc = dynamic_origin['description']
-    dynamic_src = []
-    for pic in dynamic_origin['pictures']:
-        dynamic_src.append(download_img(pic['img_src']))
-
-    return dynamic_desc, dynamic_src
-
 
 def extra_bili_info(video_info):
     """

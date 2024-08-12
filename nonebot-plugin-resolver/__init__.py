@@ -2,7 +2,7 @@ import asyncio
 import json
 import os.path
 from typing import cast, Iterable, Union
-from bilibili_api import video, Credential, live
+from bilibili_api import video, Credential, live, article
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter
 
@@ -109,9 +109,9 @@ async def bilibili(bot: Bot, event: Event) -> None:
         resp = httpx.get(b_short_url, headers=header, follow_redirects=True)
         url: str = str(resp.url)
     else:
-        url: str = re.search(url_reg, url)[0]
+        url: str = re.search(url_reg, url).group(0)
     # ===============发现解析的是动态，转移一下===============
-    if ('t.bilibili.com' in url or 'opus' in url) and BILI_SESSDATA != '':
+    if ('t.bilibili.com' in url or '/opus' in url) and BILI_SESSDATA != '':
         # 去除多余的参数
         if '?' in url:
             url = url[:url.index('?')]
@@ -145,7 +145,22 @@ async def bilibili(bot: Bot, event: Event) -> None:
         await bili23.send(Message([MessageSegment.image(cover), MessageSegment.image(keyframe),
                                    MessageSegment.text(f"{GLOBAL_NICKNAME}识别：哔哩哔哩直播，{title}")]))
         return
-
+    # 专栏识别
+    if 'read' in url:
+        read_id = re.search(r'read\/cv(\d+)', url).group(1)
+        ar = article.Article(read_id)
+        # 如果专栏为公开笔记，则转换为笔记类
+        # NOTE: 笔记类的函数与专栏类的函数基本一致
+        if ar.is_note():
+            ar = ar.turn_to_note()
+        # 加载内容
+        await ar.fetch_content()
+        markdown_path = f'{os.getcwd()}/article.md'
+        with open(markdown_path, 'w', encoding='utf8') as f:
+            f.write(ar.markdown())
+        await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：哔哩哔哩专栏"))
+        await bili23.send(Message(MessageSegment(type="file", data={"file": markdown_path})))
+        return
     # 获取视频信息
     video_id = re.search(r"video\/[^\?\/ ]+", url)[0].split('/')[1]
     v = video.Video(video_id)
