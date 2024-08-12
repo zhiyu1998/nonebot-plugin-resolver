@@ -37,7 +37,7 @@ nb plugin install nonebot-plugin-resolver
 ```sh
 pip install --upgrade nonebot-plugin-resolver
 ```
-3. 🚀【高级 / 进阶 / 推荐】使用脚本进行安装，**优点就是及时更新**
+3. 🚀【高级 / 进阶 / 推荐】使用脚本进行安装，**优点就是及时更新** | ⚠️在可以执行`nb run`那个目录执行即可
 
 ```shell
 curl -fsSL https://raw.gitmirror.com/zhiyu1998/nonebot-plugin-resolver/master/npr_install.sh > npr_install.sh && chmod 755 npr_install.sh && ./npr_install.sh
