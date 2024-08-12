@@ -1,4 +1,13 @@
 #!/bin/bash
+# -----------------------------------------------------------------------------
+# Script Name: nonebot-plugin-resolver-install.sh
+# Description: 下载并设置onebot-plugin-resolver插件，检查和删除已存在的插件文件夹。
+# Author: zhiyu1998
+# Created: 2024-08-12
+# Last Modified: 2024-08-12
+# Version: 1.0
+# Repository: https://github.com/zhiyu1998/nonebot-plugin-resolver
+# -----------------------------------------------------------------------------
 
 # 检查src目录是否存在
 if [ -d "src" ]; then
