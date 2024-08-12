@@ -87,14 +87,14 @@ https://github.com/user-attachments/assets/7ead6d62-a36c-4e8d-bb5d-6666749dfb26
 
 ## 🤺 交流群
 
-<img src="https://sm.ms/image/8zhnvBCj5SgxukK" width="30%" height="30%">
+<img src="https://s2.loli.net/2024/08/12/8zhnvBCj5SgxukK.jpg" width="30%" height="30%">
 
 ## 🎉 使用 & 效果图
-<img src="https://sm.ms/image/l8ISa1Gv76OHuML" width="50%" height="50%">
-<img src="https://sm.ms/image/Ojlh6Nr9SiRmvuB" width="50%" height="50%">
-<img src="https://sm.ms/image/MF4xyhESYZBzcwL" width="50%" height="50%">
-<img src="https://sm.ms/image/nDpB6Y9yHvmtKjU" width="50%" height="50%">
-<img src="https://sm.ms/image/I5VWuASNFTmakw1" width="50%" height="50%">
+<img src="https://s2.loli.net/2024/08/12/l8ISa1Gv76OHuML.webp" width="50%" height="50%">
+<img src="https://s2.loli.net/2024/08/12/Ojlh6Nr9SiRmvuB.webp" width="50%" height="50%">
+<img src="https://s2.loli.net/2024/08/12/MF4xyhESYZBzcwL.webp" width="50%" height="50%">
+<img src="https://s2.loli.net/2024/08/12/nDpB6Y9yHvmtKjU.webp" width="50%" height="50%">
+<img src="https://s2.loli.net/2024/08/12/I5VWuASNFTmakw1.webp" width="50%" height="50%">
 
 ## 开发 && 发版
 
