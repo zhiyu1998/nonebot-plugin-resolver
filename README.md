@@ -44,15 +44,8 @@ sudo apt-get install ffmpeg
 # 其他linux参考（群友推荐）：https://gitee.com/baihu433/ffmpeg
 # Windows 参考：https://www.jianshu.com/p/5015a477de3c
 ```
-4. 【可选】安装`am`&`Spotify`解析必要的依赖
-```shell
-npm install -g freyr
-# 或者你有yarn的话可以使用
-yarn global add freyr
-# 接着安装它的依赖
-apt-get install atomicparsley
-```
-5. 【可选】安装`TK`&`YB`解析必要依赖 不建议直接使用`apt`不是最新版
+
+4. 【可选】安装`TikTok`&`YouTube`解析必要依赖 不建议直接使用`apt`不是最新版
 ```shell
 # debian 海外
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ~/.local/bin/yt-dlp

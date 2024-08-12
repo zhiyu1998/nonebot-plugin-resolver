@@ -1,13 +1,12 @@
 import asyncio
 import json
 import os.path
-from typing import cast
+from typing import cast, Iterable, Union
 from bilibili_api import video, Credential
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter
 
 from nonebot import on_regex, get_driver, logger
-from nonebot.exception import ActionFailed, NetworkError
 from nonebot.plugin import PluginMetadata
 from nonebot.matcher import current_bot
 from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment
@@ -19,7 +18,6 @@ from .bili23_utils import download_b_file, merge_file_to_mp4, extra_bili_info
 from .tiktok_utills import generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
-from .freyrjs import parse_freyr_log, execute_freyr_command
 from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
 
 __plugin_meta__ = PluginMetadata(
@@ -84,6 +82,7 @@ freyr = on_regex(
     r"(.*)(music.apple.com|open.spotify.com)"
 )
 
+
 @bili23.handle()
 async def bilibili(bot: Bot, event: Event) -> None:
     """
@@ -111,15 +110,14 @@ async def bilibili(bot: Bot, event: Event) -> None:
         url: str = str(resp.url)
     else:
         url: str = re.search(url_reg, url)[0]
-    # 发现解析的是动态，转移一下
+    # ===============发现解析的是动态，转移一下===============
     if ('t.bilibili.com' in url or 'opus' in url) and BILI_SESSDATA != '':
         # 去除多余的参数
         if '?' in url:
             url = url[:url.index('?')]
         dynamic_id = int(re.search(r'[^/]+(?!.*/)', url)[0])
         dynamic_info = await Opus(dynamic_id, credential).get_info()
-        # with open('data.json', 'w') as f:
-        #     json.dump(dynamic_info, f)
+        # 这里比较复杂，暂时不用管，使用下面这个算法即可实现哔哩哔哩动态转发
         if dynamic_info is not None:
             title = dynamic_info['item']['basic']['title']
             paragraphs = []
@@ -133,26 +131,20 @@ async def bilibili(bot: Bot, event: Event) -> None:
             send_pics = []
             for pic in pics:
                 img = pic['url']
-                send_pics.append(MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                            content=Message(MessageSegment.image(img))))
+                send_pics.append(make_node_segment(bot.self_id, MessageSegment.image(img)))
             # 发送异步后的数据
-            if isinstance(event, GroupMessageEvent):
-                await bot.send_group_forward_msg(group_id=event.group_id, messages=send_pics)
-            else:
-                await bot.send_private_forward_msg(user_id=event.user_id, messages=send_pics)
+            await send_both(bot, event, send_pics)
         return
 
     # 获取视频信息
-    # logger.error(url)
     video_id = re.search(r"video\/[^\?\/ ]+", url)[0].split('/')[1]
-    # logger.error(video_id)
     v = video.Video(video_id)
     video_info = await v.get_info()
     if video_info is None:
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
         return
     video_title, video_cover, video_desc, video_duration = video_info['title'], video_info['pic'], video_info['desc'], \
-    video_info['duration']
+        video_info['duration']
     # 删除特殊字符
     video_title = delete_boring_characters(video_title)
     # 截断下载时间比较长的视频
@@ -178,19 +170,15 @@ async def bilibili(bot: Bot, event: Event) -> None:
     finally:
         remove_res = remove_files([f"{video_id}-video.m4s", f"{video_id}-audio.m4s"])
         logger.info(remove_res)
-    # logger.info(os.getcwd())
     # 发送出去
-    # logger.info(path)
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
     await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
-    # logger.info(f'{path}-res.mp4')
+    # 这里是总结内容，如果写了cookie就可以
     if BILI_SESSDATA != '':
         ai_conclusion = await v.get_ai_conclusion(await v.get_cid(0))
         if ai_conclusion['model_result']['summary'] != '':
-            send_forword_summary = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                                               content=Message(MessageSegment.text(item)))
-                                    for item in ["bilibili AI总结", ai_conclusion['model_result']['summary']]]
-
+            send_forword_summary = make_node_segment(bot.self_id, ["bilibili AI总结",
+                                                                         ai_conclusion['model_result']['summary']])
             await bili23.send(Message(send_forword_summary))
 
 
@@ -267,10 +255,7 @@ async def dy(bot: Bot, event: Event) -> None:
                 # 异步发送
                 # logger.info(no_watermark_image_list)
                 # imgList = await asyncio.gather([])
-                if isinstance(event, GroupMessageEvent):
-                    await bot.send_group_forward_msg(group_id=event.group_id, messages=no_watermark_image_list)
-                else:
-                    await bot.send_private_forward_msg(user_id=event.user_id, messages=no_watermark_image_list)
+                await send_both(bot, event, no_watermark_image_list)
 
 
 @tik.handle()
@@ -371,10 +356,7 @@ async def twitter(bot: Bot, event: Event):
     aio_task_res = [auto_determine_send_type(int(bot.self_id), path) for path in path_res]
 
     # 发送异步后的数据
-    if isinstance(event, GroupMessageEvent):
-        await bot.send_group_forward_msg(group_id=event.group_id, messages=aio_task_res)
-    else:
-        await bot.send_private_forward_msg(user_id=event.user_id, messages=aio_task_res)
+    await send_both(bot, event, aio_task_res)
 
     # 清除垃圾
     for path in path_res:
@@ -450,13 +432,9 @@ async def xiaohongshu(bot: Bot, event: Event):
         await auto_video_send(event, path, IS_LAGRANGE)
         return
     # 发送图片
-    links = [MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                        content=Message(MessageSegment.image(f"file://{link}"))) for link in links_path]
+    links = make_node_segment(bot.self_id, [Message(MessageSegment.image(f"file://{link}")) for link in links_path])
     # 发送异步后的数据
-    if isinstance(event, GroupMessageEvent):
-        await bot.send_group_forward_msg(group_id=event.group_id, messages=links)
-    else:
-        await bot.send_private_forward_msg(user_id=event.user_id, messages=links)
+    await send_both(bot, event, links)
     # 清除图片
     for temp in links_path:
         os.unlink(temp)
@@ -477,42 +455,9 @@ async def youtube(bot: Bot, event: Event):
     await auto_video_send(event, target_ytb_video_path, IS_LAGRANGE)
 
 
-@freyr.handle()
-async def freyrjs(bot: Bot, event: Event):
-    # 过滤参数
-    message = str(event.message).replace("&ls", "")
-    # 匹配名字
-    freyr_name = "Spotify" if "spotify" in message else "Apple Music"
-    # 下载地址
-    music_download_path = os.path.join(os.getcwd(), "am")
-    # 执行下载命令
-    result = await execute_freyr_command(message, music_download_path)
-    logger.info(result.stdout.decode())
-    # 获取信息
-    parsed_result = await parse_freyr_log(result.stdout.decode())
-    await freyr.send(
-        Message(f"识别：{freyr_name}，{parsed_result['title']}--{parsed_result['artist']}\n{parsed_result['album']}"))
-    # 检查目录是否存在
-    music_path = os.path.join(music_download_path, parsed_result['artist'], parsed_result['album'])
-    if os.path.exists(music_path):
-        logger.info('目录存在。正在获取.m4a文件...')
-
-        # 读取目录中的所有文件和文件夹
-        files = os.listdir(music_path)
-        # 过滤出以.m4a结尾的文件
-        m4a_files = [file for file in files if os.path.splitext(file)[1].lower() == '.m4a']
-
-        # 打印出所有.m4a文件
-        logger.info('找到以下.m4a文件:')
-        for file in m4a_files:
-            await auto_video_send(event, os.path.join(music_path, file), IS_LAGRANGE)
-    else:
-        await freyr.send(Message(f"下载失败！没有找到{freyr_name}下载下来文件！"))
-
-
 def auto_determine_send_type(user_id: int, task: str):
     """
-        判断是视频还是图片然后发送最后删除
+        判断是视频还是图片然后发送最后删除，函数在 twitter 这类可以图、视频混合发送的媒体十分有用
     :param user_id:
     :param task:
     :return:
@@ -523,6 +468,36 @@ def auto_determine_send_type(user_id: int, task: str):
     elif task.endswith("mp4"):
         return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
                                           content=Message(MessageSegment.video(task)))
+
+
+def make_node_segment(user_id, segments: Union[MessageSegment, List]) -> Union[
+    MessageSegment, Iterable[MessageSegment]]:
+    """
+        将消息封装成 Segment 的 Node 类型，可以传入单个也可以传入多个，返回一个封装好的转发类型
+    :param user_id: 可以通过event获取
+    :param segments: 一般为 MessageSegment.image / MessageSegment.video / MessageSegment.text
+    :return:
+    """
+    if isinstance(segments, list):
+        return [MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
+                                           content=Message(segment)) for segment in segments]
+    return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
+                                      content=Message(segments))
+
+
+async def send_both(bot: Bot, event: Event, segments: Union[MessageSegment, List]) -> None:
+    """
+        自动判断message是 List 还是单个，然后发送，允许发送群和个人
+    :param bot:
+    :param event:
+    :param segments:
+    :return:
+    """
+    if isinstance(event, GroupMessageEvent):
+        await bot.send_group_forward_msg(group_id=event.group_id, messages=segments)
+    else:
+        await bot.send_private_forward_msg(user_id=event.user_id, messages=segments)
+
 
 async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
     """
