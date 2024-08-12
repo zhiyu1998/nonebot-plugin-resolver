@@ -87,14 +87,14 @@ https://github.com/user-attachments/assets/7ead6d62-a36c-4e8d-bb5d-6666749dfb26
 
 ## 🤺 交流群
 
-<img src="./img/group.JPG" width="30%" height="30%">
+<img src="https://sm.ms/image/8zhnvBCj5SgxukK" width="30%" height="30%">
 
 ## 🎉 使用 & 效果图
-<img src="./img/example.webp" width="50%" height="50%">
-<img src="./img/example2.webp" width="50%" height="50%">
-<img src="./img/example3.webp" width="50%" height="50%">
-<img src="./img/example4.webp" width="50%" height="50%">
-<img src="./img/example5.webp" width="50%" height="50%">
+<img src="https://sm.ms/image/l8ISa1Gv76OHuML" width="50%" height="50%">
+<img src="https://sm.ms/image/Ojlh6Nr9SiRmvuB" width="50%" height="50%">
+<img src="https://sm.ms/image/MF4xyhESYZBzcwL" width="50%" height="50%">
+<img src="https://sm.ms/image/nDpB6Y9yHvmtKjU" width="50%" height="50%">
+<img src="https://sm.ms/image/I5VWuASNFTmakw1" width="50%" height="50%">
 
 ## 开发 && 发版
 
