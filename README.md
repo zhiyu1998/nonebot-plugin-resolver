@@ -83,6 +83,7 @@ IS_LAGRANGE=False # 是否是拉格朗日（https://github.com/KonataDev/Lagrang
 RESOLVER_PROXY = "http://127.0.0.1:7890" # 代理
 R_GLOBAL_NICKNAME="大橘" # 解析前缀名
 BILI_SESSDATA='' # bilibili sessdata 填写后可附加: 总结等功能
+VIDEO_DURATION_MAXIMUM=480 # 视频最大解析长度
 ```
 
 ## 🤳🏿 在线观看如何获取 Cookie
