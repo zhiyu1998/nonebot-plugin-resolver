@@ -174,7 +174,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
             title, cover, intro, link = fav['title'], fav['cover'], fav['intro'], fav['link']
             logger.info(title, cover, intro)
             favs.append([MessageSegment.image(cover), MessageSegment.text(f'🧉 标题：{title}\n📝 简介：{intro}\n🔗 链接：{link}')])
-        await bili23.send(f'✅ {GLOBAL_NICKNAME}识别：哔哩哔哩收藏夹，正在为你找出相关链接请稍等...')
+        await bili23.send(f'{GLOBAL_NICKNAME}识别：哔哩哔哩收藏夹，正在为你找出相关链接请稍等...')
         await bili23.send(make_node_segment(bot.self_id, favs))
         return
     # 获取视频信息
@@ -208,11 +208,11 @@ async def bilibili(bot: Bot, event: Event) -> None:
     online_str = f'🏄‍♂️ 总共 {online["total"]} 人在观看，{online["count"]} 人在网页端观看'
     if video_duration <= VIDEO_DURATION_MAXIMUM:
         await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
-            f"\n✅ {GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
+            f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
     else:
         return await bili23.finish(
             Message(MessageSegment.image(video_cover)) + Message(
-                f"\n✅ {GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
+                f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
     download_url_data = await v.get_download_url(page_index=page_num)
     detecter = VideoDownloadURLDataDetecter(download_url_data)
