@@ -524,50 +524,9 @@ def auto_determine_send_type(user_id: int, task: str):
         return MessageSegment.node_custom(user_id=user_id, nickname=GLOBAL_NICKNAME,
                                           content=Message(MessageSegment.video(task)))
 
-
-async def upload_data_file(bot: Bot, event: Event, data_path: str):
-    """
-    上传群文件
-    :param bot:
-    :param event:
-    :param data_path:
-    :return:
-    """
-    if isinstance(event, GroupMessageEvent):
-        await upload_group_file(bot, group_id=event.group_id, file=data_path)
-    elif isinstance(event, PrivateMessageEvent):
-        await upload_private_file(bot, user_id=event.user_id, file=data_path)
-
-
-async def upload_group_file(bot: Bot, group_id: int, file: str):
-    try:
-        await bot.upload_group_file(group_id=group_id, file=file, name="{:.0f}.mp4".format(time.time()))
-    except (ActionFailed, NetworkError) as e:
-        logger.error(e)
-        if isinstance(e, ActionFailed) and e.info["wording"] == "server" \
-                                                                " requires unsupported ftn upload":
-            await bot.send_group_msg(group_id=group_id, message=Message(MessageSegment.text(
-                "[ERROR]  文件上传失败\r\n[原因]  机器人缺少上传文件的权限\r\n[解决办法]  "
-                "请将机器人设置为管理员或者允许群员上传文件")))
-        elif isinstance(e, NetworkError):
-            await bot.send_group_msg(group_id=group_id,
-                                     message=Message(MessageSegment.text("[ERROR]文件上传失败\r\n[原因]  "
-                                                                         "上传超时(一般来说还在传,建议等待五分钟)")))
-
-
-async def upload_private_file(bot: Bot, user_id: int, file: str):
-    try:
-        await bot.upload_private_file(user_id=user_id, file=file, name="{:.0f}.mp4".format(time.time()))
-    except (ActionFailed, NetworkError) as e:
-        logger.error(e)
-        if isinstance(e, NetworkError):
-            await bot.send_private_msg(user_id=user_id, message=Message(MessageSegment.text(
-                "[ERROR]  文件上传失败\r\n[原因]  上传超时(一般来说还在传,建议等待五分钟)")))
-
-
 async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
     """
-    拉格朗日自动转换成上传
+    拉格朗日自动转换成CQ码发送
     :param event:
     :param data_path:
     :param is_lagrange:
@@ -576,14 +535,15 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
     try:
         bot: Bot = cast(Bot, current_bot.get())
 
-        # 如果data以"http"开头，先下载视频
-        if data_path.startswith("http"):
-            data_path = await download_video(data_path)
-
-        # 如果是Lagrange，则上传数据文件
+        # 如果是Lagrange，转换成CQ码发送
         if is_lagrange:
-            await upload_data_file(bot=bot, event=event, data=data_path)
+            cq_code = f'[CQ:video,file={data_path}]'
+            await bot.send(event, Message(cq_code))
         else:
+            # 如果data以"http"开头，先下载视频
+            if data_path.startswith("http"):
+                data_path = await download_video(data_path)
+
             # 根据事件类型发送不同的消息
             if isinstance(event, GroupMessageEvent):
                 await bot.send_group_msg(group_id=event.group_id,
