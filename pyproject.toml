@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nonebot-plugin-resolver"
-version = "1.2.6"
+version = "1.2.7"
 description = "NoneBot2链接分享解析器插件。解析视频、图片链接/小程序插件，tiktok、bilibili、twitter等实时发送！"
 authors = ["zhiyu1998 <renzhiyu0416@qq.com>"]
 readme = "README.md"
@@ -12,7 +12,7 @@ keywords = ["nonebot", "nonebot2", "resolver"]
 python = "^3.9"
 aiohttp = "^3.7"
 httpx = ">=0.23,<0.27"
-lxml = "^4.9"
+lxml = ">=5.1.0,<5.2.0"
 PyExecJS = "^1.5.1"
 bilibili-api-python = "16.2.0"
 nonebot2 = "^2.0.0-beta.5"
