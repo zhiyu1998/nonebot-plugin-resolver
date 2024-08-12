@@ -173,13 +173,15 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # 删除特殊字符
     video_title = delete_boring_characters(video_title)
     # 截断下载时间比较长的视频
+    online = await v.get_online()
+    online_str = f'🏄‍♂️ 总共 {online["total"]} 人在观看，{online["count"]} 人在网页端观看'
     if video_duration <= VIDEO_DURATION_MAXIMUM:
         await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
-            f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}"))
+            f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
     else:
         return await bili23.finish(
             Message(MessageSegment.image(video_cover)) + Message(
-                f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
+                f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
     download_url_data = await v.get_download_url(0)
     detecter = VideoDownloadURLDataDetecter(download_url_data)
