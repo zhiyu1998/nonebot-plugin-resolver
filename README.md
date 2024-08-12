@@ -28,16 +28,23 @@ _✨ NoneBot2 链接分享解析器插件 ✨_
 
 1. 使用 nb-cli 安装，不需要手动添加入口，更新使用 pip
 
-```
+```sh
 nb plugin install nonebot-plugin-resolver
 ```
 
 2. 使用 pip 安装和更新，初次安装需要手动添加入口
 
-```
+```sh
 pip install --upgrade nonebot-plugin-resolver
 ```
-3. 【必要】安装必要组件 FFmpeg
+3. 【高级 / 进阶 / 推荐】使用脚本进行安装，优点就是及时更新
+
+```
+
+```
+
+4. 【必要】安装必要组件 FFmpeg
+
 ```shell
 # ubuntu
 sudo apt-get install ffmpeg
@@ -45,7 +52,8 @@ sudo apt-get install ffmpeg
 # Windows 参考：https://www.jianshu.com/p/5015a477de3c
 ```
 
-4. 【可选】安装`TikTok`&`YouTube`解析必要依赖 不建议直接使用`apt`不是最新版
+5. 【可选】安装`TikTok`&`YouTube`解析必要依赖 不建议直接使用`apt`不是最新版
+
 ```shell
 # debian 海外
 curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ~/.local/bin/yt-dlp
