@@ -7,8 +7,6 @@
 
 <div align="center">
 
-# nonebot-plugin-resolver
-
 _✨ NoneBot2 链接分享解析器插件 ✨_
 
 
