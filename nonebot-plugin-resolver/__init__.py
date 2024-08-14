@@ -21,7 +21,7 @@ from .bili23_utils import download_b_file, merge_file_to_mp4, extra_bili_info
 from .tiktok_utills import generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
-from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK
+from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -173,8 +173,9 @@ async def bilibili(bot: Bot, event: Event) -> None:
         for fav in fav_list:
             title, cover, intro, link = fav['title'], fav['cover'], fav['intro'], fav['link']
             logger.info(title, cover, intro)
-            favs.append([MessageSegment.image(cover), MessageSegment.text(f'🧉 标题：{title}\n📝 简介：{intro}\n🔗 链接：{link}')])
-        await bili23.send(f'{GLOBAL_NICKNAME}识别：哔哩哔哩收藏夹，正在为你找出相关链接请稍等...')
+            favs.append(
+                [MessageSegment.image(cover), MessageSegment.text(f'🧉 标题：{title}\n📝 简介：{intro}\n🔗 链接：{link}')])
+        await bili23.send(f'✅ {GLOBAL_NICKNAME}识别：哔哩哔哩收藏夹，正在为你找出相关链接请稍等...')
         await bili23.send(make_node_segment(bot.self_id, favs))
         return
     # 获取视频信息
@@ -208,11 +209,11 @@ async def bilibili(bot: Bot, event: Event) -> None:
     online_str = f'🏄‍♂️ 总共 {online["total"]} 人在观看，{online["count"]} 人在网页端观看'
     if video_duration <= VIDEO_DURATION_MAXIMUM:
         await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
-            f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
+            f"\n✅ {GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
     else:
         return await bili23.finish(
             Message(MessageSegment.image(video_cover)) + Message(
-                f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
+                f"\n✅ {GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
     download_url_data = await v.get_download_url(page_index=page_num)
     detecter = VideoDownloadURLDataDetecter(download_url_data)
@@ -236,7 +237,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
         ai_conclusion = await v.get_ai_conclusion(await v.get_cid(0))
         if ai_conclusion['model_result']['summary'] != '':
             send_forword_summary = make_node_segment(bot.self_id, ["bilibili AI总结",
-                                                                         ai_conclusion['model_result']['summary']])
+                                                                   ai_conclusion['model_result']['summary']])
             await bili23.send(Message(send_forword_summary))
 
 
@@ -289,12 +290,12 @@ async def dy(bot: Bot, event: Event) -> None:
             # 根据类型进行发送
             if url_type == 'video':
                 # 识别播放地址
-                player_addr_list = detail.get("video").get("play_addr").get("url_list")
-                player_addr = player_addr_list[len(player_addr_list) - 1]
+                player_uri = detail.get("video").get("play_addr")['uri']
+                player_real_addr = DY_TOUTIAO_INFO.replace("{}", player_uri)
                 # 发送视频
                 # logger.info(player_addr)
                 # await douyin.send(Message(MessageSegment.video(player_addr)))
-                await auto_video_send(event, player_addr, IS_LAGRANGE)
+                await auto_video_send(event, player_real_addr, IS_LAGRANGE)
             elif url_type == 'image':
                 # 无水印图片列表/No watermark image list
                 no_watermark_image_list = []
@@ -453,7 +454,7 @@ async def xiaohongshu(bot: Bot, event: Event):
     xhs_id = xhs_id[1]
 
     html = httpx.get(f'{XHS_REQ_LINK}{xhs_id}', headers=headers).text
-    #response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
+    # response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
     try:
         response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
     except IndexError:
@@ -576,7 +577,6 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
             # 如果data以"http"开头，先下载视频
             if data_path.startswith("http"):
                 data_path = await download_video(data_path)
-
             # 根据事件类型发送不同的消息
             if isinstance(event, GroupMessageEvent):
                 await bot.send_group_msg(group_id=event.group_id,

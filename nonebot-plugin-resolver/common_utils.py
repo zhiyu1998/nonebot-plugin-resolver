@@ -3,6 +3,7 @@ import httpx
 import os
 import re
 import time
+import aiofiles
 
 from typing import List, Dict
 
@@ -32,13 +33,14 @@ async def download_video(url, proxy: str = None):
     }
     if proxy:
         client_config['proxies'] = {'https': proxy}
+
     # 下载文件
     try:
         async with httpx.AsyncClient(**client_config) as client:
             async with client.stream("GET", url) as resp:
-                with open(path, "wb") as f:
+                async with aiofiles.open(path, "wb") as f:
                     async for chunk in resp.aiter_bytes():
-                        f.write(chunk)
+                        await f.write(chunk)
         return path
     except Exception as e:
         print(f"下载视频错误原因是: {e}")
