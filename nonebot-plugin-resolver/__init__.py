@@ -5,7 +5,7 @@ from typing import cast, Iterable, Union
 from urllib.parse import urlparse, parse_qs
 
 from bilibili_api import video, Credential, live, article
-from bilibili_api.favorite_list import get_video_favorite_list, get_video_favorite_list_content
+from bilibili_api.favorite_list import get_video_favorite_list_content
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter
 
@@ -21,7 +21,8 @@ from .bili23_utils import download_b_file, merge_file_to_mp4, extra_bili_info
 from .tiktok_utills import generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
-from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO
+from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
+    BILIBILI_HEADER, COMMON_HEADER
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -30,7 +31,7 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/zhiyu1998/nonebot-plugin-resolver",
     config=Config,
-    supported_adapters={"~onebot.v11", "~qq"}
+    supported_adapters={ "~onebot.v11", "~qq" }
 )
 
 # 配置加载
@@ -90,14 +91,10 @@ freyr = on_regex(
 async def bilibili(bot: Bot, event: Event) -> None:
     """
         哔哩哔哩解析
+    :param bot:
     :param event:
     :return:
     """
-    header = {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
-        'referer': 'https://www.bilibili.com',
-    }
     # 消息
     url: str = str(event.message).strip()
     # 正则匹配
@@ -109,7 +106,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # 处理短号、小程序问题
     if 'b23.tv' in url or ('b23.tv' and 'QQ小程序' in url):
         b_short_url = re.search(b_short_rex, url.replace("\\", ""))[0]
-        resp = httpx.get(b_short_url, headers=header, follow_redirects=True)
+        resp = httpx.get(b_short_url, headers=BILIBILI_HEADER, follow_redirects=True)
         url: str = str(resp.url)
     else:
         url: str = re.search(url_reg, url).group(0)
@@ -136,7 +133,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
                 img = pic['url']
                 send_pics.append(make_node_segment(bot.self_id, MessageSegment.image(img)))
             # 发送异步后的数据
-            await send_both(bot, event, send_pics)
+            await send_forward_both(bot, event, send_pics)
         return
     # 直播间识别
     if 'live' in url:
@@ -162,7 +159,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
         with open(markdown_path, 'w', encoding='utf8') as f:
             f.write(ar.markdown())
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：哔哩哔哩专栏"))
-        await bili23.send(Message(MessageSegment(type="file", data={"file": markdown_path})))
+        await bili23.send(Message(MessageSegment(type="file", data={ "file": markdown_path })))
         return
     # 收藏夹识别
     if 'favlist' in url and BILI_SESSDATA != '':
@@ -174,7 +171,8 @@ async def bilibili(bot: Bot, event: Event) -> None:
             title, cover, intro, link = fav['title'], fav['cover'], fav['intro'], fav['link']
             logger.info(title, cover, intro)
             favs.append(
-                [MessageSegment.image(cover), MessageSegment.text(f'🧉 标题：{title}\n📝 简介：{intro}\n🔗 链接：{link}')])
+                [MessageSegment.image(cover),
+                 MessageSegment.text(f'🧉 标题：{title}\n📝 简介：{intro}\n🔗 链接：{link}')])
         await bili23.send(f'✅ {GLOBAL_NICKNAME}识别：哔哩哔哩收藏夹，正在为你找出相关链接请稍等...')
         await bili23.send(make_node_segment(bot.self_id, favs))
         return
@@ -185,7 +183,6 @@ async def bilibili(bot: Bot, event: Event) -> None:
     if video_info is None:
         await bili23.send(Message(f"{GLOBAL_NICKNAME}识别：B站，出错，无法获取数据！"))
         return
-    logger.info(f"=================================={video_info['duration']}")
     video_title, video_cover, video_desc, video_duration = video_info['title'], video_info['pic'], video_info['desc'], \
         video_info['duration']
     # 校准 分p 的情况
@@ -245,6 +242,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
 async def dy(bot: Bot, event: Event) -> None:
     """
         抖音解析
+    :param bot:
     :param event:
     :return:
     """
@@ -268,11 +266,10 @@ async def dy(bot: Bot, event: Event) -> None:
         return
     # API、一些后续要用到的参数
     headers = {
-        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
-        'referer': f'https://www.douyin.com/video/{dou_id}',
-        'cookie': douyin_ck
-    }
+                  'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+                  'referer': f'https://www.douyin.com/video/{dou_id}',
+                  'cookie': douyin_ck
+              } | COMMON_HEADER
     api_url = DOUYIN_VIDEO.replace("{}", dou_id)
     api_url = generate_x_bogus_url(api_url, headers)  # 如果请求失败直接返回
     async with aiohttp.ClientSession() as session:
@@ -305,16 +302,13 @@ async def dy(bot: Bot, event: Event) -> None:
                 for i in detail['images']:
                     # 无水印图片列表
                     # no_watermark_image_list.append(i['url_list'][0])
-                    no_watermark_image_list.append(
-                        MessageSegment.node_custom(user_id=int(bot.self_id), nickname=GLOBAL_NICKNAME,
-                                                   content=Message(MessageSegment.image(i['url_list'][0])))
-                    )
+                    no_watermark_image_list.append(MessageSegment.image(i['url_list'][0]))
                     # 有水印图片列表
                     # watermark_image_list.append(i['download_url_list'][0])
                 # 异步发送
                 # logger.info(no_watermark_image_list)
                 # imgList = await asyncio.gather([])
-                await send_both(bot, event, no_watermark_image_list)
+                await send_forward_both(bot, event, make_node_segment(bot.self_id, no_watermark_image_list))
 
 
 @tik.handle()
@@ -341,7 +335,7 @@ async def tiktok(event: Event) -> None:
         url = temp_resp.url
     elif "vm.tiktok" in url:
         temp_url = re.search(url_short_reg2, url)[0]
-        temp_resp = httpx.get(temp_url, headers={"User-Agent": "facebookexternalhit/1.1"}, follow_redirects=True,
+        temp_resp = httpx.get(temp_url, headers={ "User-Agent": "facebookexternalhit/1.1" }, follow_redirects=True,
                               proxies=httpx_proxies)
         url = str(temp_resp.url)
         # logger.info(url)
@@ -384,6 +378,7 @@ async def ac(event: Event) -> None:
 async def twitter(bot: Bot, event: Event):
     """
         推特解析
+    :param bot:
     :param event:
     :return:
     """
@@ -392,11 +387,16 @@ async def twitter(bot: Bot, event: Event):
 
     logger.debug(GENERAL_REQ_LINK.replace("{}", x_url))
     x_resp = httpx.get(GENERAL_REQ_LINK.replace("{}", x_url), headers={
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Language': 'zh-CN,zh;q=0.9', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive',
-        'Pragma': 'no-cache', 'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1', 'Upgrade-Insecure-Requests': '1',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36', })
+        'Accept': 'ext/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                  'application/signed-exchange;v=b3;q=0.7',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Host': '47.99.158.118',
+        'Proxy-Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-User': '?1',
+        **COMMON_HEADER
+    })
     x_url: str = x_resp.json()['data']['url']
     logger.info(x_url)
 
@@ -415,7 +415,7 @@ async def twitter(bot: Bot, event: Event):
     aio_task_res = [auto_determine_send_type(int(bot.self_id), path) for path in path_res]
 
     # 发送异步后的数据
-    await send_both(bot, event, aio_task_res)
+    await send_forward_both(bot, event, aio_task_res)
 
     # 清除垃圾
     for path in path_res:
@@ -439,10 +439,10 @@ async def xiaohongshu(bot: Bot, event: Event):
         return
     # 请求头
     headers = {
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'cookie': xhs_ck,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 UBrowser/6.2.4098.3 Safari/537.36',
-    }
+                  'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,'
+                            'application/signed-exchange;v=b3;q=0.9',
+                  'cookie': xhs_ck,
+              } | COMMON_HEADER
     if "xhslink" in msg_url:
         msg_url = httpx.get(msg_url, headers=headers, follow_redirects=True).url
         msg_url = str(msg_url)
@@ -458,7 +458,8 @@ async def xiaohongshu(bot: Bot, event: Event):
     try:
         response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
     except IndexError:
-        await xhs.send(Message(f"{GLOBAL_NICKNAME}识别内容来自：【小红书】\n当前ck已失效，请联系管理员重新设置的小红书ck！"))
+        await xhs.send(
+            Message(f"{GLOBAL_NICKNAME}识别内容来自：【小红书】\n当前ck已失效，请联系管理员重新设置的小红书ck！"))
         return
     response_json = response_json.replace("undefined", "null")
     response_json = json.loads(response_json)
@@ -491,9 +492,10 @@ async def xiaohongshu(bot: Bot, event: Event):
         await auto_video_send(event, path, IS_LAGRANGE)
         return
     # 发送图片
-    links = make_node_segment(bot.self_id, [Message(MessageSegment.image(f"file://{link}")) for link in links_path])
+    links = make_node_segment(bot.self_id,
+                              [MessageSegment.image(f"file://{link}") for link in links_path])
     # 发送异步后的数据
-    await send_both(bot, event, links)
+    await send_forward_both(bot, event, links)
     # 清除图片
     for temp in links_path:
         os.unlink(temp)
@@ -544,18 +546,36 @@ def make_node_segment(user_id, segments: Union[MessageSegment, List]) -> Union[
                                       content=Message(segments))
 
 
-async def send_both(bot: Bot, event: Event, segments: Union[MessageSegment, List]) -> None:
+async def send_forward_both(bot: Bot, event: Event, segments: Union[MessageSegment, List]) -> None:
     """
-        自动判断message是 List 还是单个，然后发送，允许发送群和个人
+        自动判断message是 List 还是单个，然后发送{转发}，允许发送群和个人
     :param bot:
     :param event:
     :param segments:
     :return:
     """
     if isinstance(event, GroupMessageEvent):
-        await bot.send_group_forward_msg(group_id=event.group_id, messages=segments)
+        await bot.send_group_forward_msg(group_id=event.group_id,
+                                         messages=segments)
     else:
-        await bot.send_private_forward_msg(user_id=event.user_id, messages=segments)
+        await bot.send_private_forward_msg(user_id=event.user_id,
+                                           messages=segments)
+
+
+async def send_both(bot: Bot, event: Event, segments: MessageSegment) -> None:
+    """
+        自动判断message是 List 还是单个，发送{单个消息}，允许发送群和个人
+    :param bot:
+    :param event:
+    :param segments:
+    :return:
+    """
+    if isinstance(event, GroupMessageEvent):
+        await bot.send_group_msg(group_id=event.group_id,
+                                 message=Message(segments))
+    elif isinstance(event, PrivateMessageEvent):
+        await bot.send_private_msg(user_id=event.user_id,
+                                   message=Message(segments))
 
 
 async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
@@ -578,12 +598,7 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
             if data_path.startswith("http"):
                 data_path = await download_video(data_path)
             # 根据事件类型发送不同的消息
-            if isinstance(event, GroupMessageEvent):
-                await bot.send_group_msg(group_id=event.group_id,
-                                         message=Message(MessageSegment.video(f'file://{data_path}')))
-            elif isinstance(event, PrivateMessageEvent):
-                await bot.send_private_msg(user_id=event.user_id,
-                                           message=Message(MessageSegment.video(f'file://{data_path}')))
+            await send_both(bot, event, MessageSegment.video(f'file://{data_path}'))
     except Exception as e:
         logger.error(f"下载出现错误，具体为\n{e}")
     finally:
