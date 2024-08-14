@@ -7,9 +7,7 @@ import aiofiles
 
 from typing import List, Dict
 
-header = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (HTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36'
-}
+from .constants import COMMON_HEADER
 
 
 async def download_video(url, proxy: str = None):
@@ -27,12 +25,12 @@ async def download_video(url, proxy: str = None):
 
     # 配置代理
     client_config = {
-        'headers': header,
+        'headers': COMMON_HEADER,
         'timeout': httpx.Timeout(60, connect=5.0),
         'follow_redirects': True
     }
     if proxy:
-        client_config['proxies'] = {'https': proxy}
+        client_config['proxies'] = { 'https': proxy }
 
     # 下载文件
     try:
@@ -97,7 +95,7 @@ def remove_files(file_paths: List[str]) -> Dict[str, str]:
     Returns:
     dict: 一个以文件路径为键、删除状态为值的字典
     """
-    results = {}
+    results = { }
 
     for file_path in file_paths:
         if os.path.exists(file_path):

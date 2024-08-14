@@ -1,13 +1,10 @@
 import httpx
 import subprocess
+import aiofiles
 
 from nonebot import logger
+from .constants import BILIBILI_HEADER
 
-header = {
-    'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
-    'referer': 'https://www.bilibili.com',
-}
 
 async def download_b_file(url, full_file_name, progress_callback):
     """
@@ -18,15 +15,15 @@ async def download_b_file(url, full_file_name, progress_callback):
     :return:
     """
     async with httpx.AsyncClient() as client:
-        async with client.stream("GET", url, headers=header) as resp:
+        async with client.stream("GET", url, headers=BILIBILI_HEADER) as resp:
             current_len = 0
-            total_len = int(resp.headers['content-length'])
+            total_len = int(resp.headers.get('content-length', 0))
             print(total_len)
-            with open(full_file_name, "wb") as f:
+            async with aiofiles.open(full_file_name, "wb") as f:
                 async for chunk in resp.aiter_bytes():
                     current_len += len(chunk)
-                    f.write(chunk)
-                    progress_callback(f'下载进度：{round(current_len / total_len, 2)}')
+                    await f.write(chunk)
+                    progress_callback(f'下载进度：{round(current_len / total_len, 3)}')
 
 
 def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_name: str):
@@ -44,6 +41,7 @@ def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     )
+
 
 def extra_bili_info(video_info):
     """

@@ -390,41 +390,47 @@ async def twitter(bot: Bot, event: Event):
     msg: str = str(event.message).strip()
     x_url = re.search(r"https?:\/\/x.com\/[0-9-a-zA-Z_]{1,20}\/status\/([0-9]*)", msg)[0]
 
-    logger.debug(GENERAL_REQ_LINK.replace("{}", x_url))
-    x_resp = httpx.get(GENERAL_REQ_LINK.replace("{}", x_url), headers={
-        'Accept': 'ext/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
-                  'application/signed-exchange;v=b3;q=0.7',
-        'Accept-Encoding': 'gzip, deflate',
-        'Accept-Language': 'zh-CN,zh;q=0.9',
-        'Host': '47.99.158.118',
-        'Proxy-Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-User': '?1',
-        **COMMON_HEADER
-    })
-    x_url: str = x_resp.json()['data']['url']
-    logger.info(x_url)
+    x_url = GENERAL_REQ_LINK.replace("{}", x_url)
+
+    # 内联一个请求
+    def x_req(url):
+        return httpx.get(url, headers={
+            'Accept': 'ext/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                      'application/signed-exchange;v=b3;q=0.7',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Host': '47.99.158.118',
+            'Proxy-Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-User': '?1',
+            **COMMON_HEADER
+        })
+
+    x_data: object = x_req(x_url).json()['data']
+
+    if x_data is None:
+        x_url = x_url + '/photo/1'
+        logger.info(x_url)
+        x_data = x_req(x_url).json()['data']
+    logger.info(x_data)
+
+    x_url_res = x_data['url']
 
     await twit.send(Message(f"{GLOBAL_NICKNAME}识别：小蓝鸟学习版"))
-    # 主要内容
-    aio_task = []
 
     # 图片
-    if x_url.endswith(".jpg") or x_url.endswith(".png"):
-        # logger.info(tweet_single.url)
-        aio_task.append(download_img(x_url))
+    if x_url_res.endswith(".jpg") or x_url_res.endswith(".png"):
+        res = await download_img(x_url_res, '', resolver_proxy)
     else:
         # 视频
-        aio_task.append(download_video(x_url))
-    path_res = await asyncio.gather(*aio_task)
-    aio_task_res = [auto_determine_send_type(int(bot.self_id), path) for path in path_res]
+        res = await download_video(x_url_res)
+    aio_task_res = auto_determine_send_type(int(bot.self_id), res)
 
     # 发送异步后的数据
     await send_forward_both(bot, event, aio_task_res)
 
     # 清除垃圾
-    for path in path_res:
-        os.unlink(path)
+    os.unlink(res)
 
 
 @xhs.handle()

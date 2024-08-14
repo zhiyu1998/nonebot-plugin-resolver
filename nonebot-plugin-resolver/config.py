@@ -7,4 +7,6 @@ class Config(BaseModel, extra=Extra.ignore):
     douyin_ck: Optional[str] = ''
     is_oversea: Optional[bool] = False
     is_lagrange: Optional[bool] = False
+    bili_sessdata: Optional[str] = ''
+    r_global_nickname: Optional[str] = ''
     resolver_proxy: Optional[str] = 'http://127.0.0.1:7890'

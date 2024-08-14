@@ -1,12 +1,12 @@
 """
-哔哩哔哩视频信息链接
-"""
-BILI_VIDEO_INFO = "https://api.bilibili.com/x/web-interface/view"
-
-"""
 dy视频信息
 """
 DOUYIN_VIDEO = "https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp&aid=6383&channel=channel_pc_web&aweme_id={}&pc_client_type=1&version_code=190500&version_name=19.5.0&cookie_enabled=true&screen_width=1344&screen_height=756&browser_language=zh-CN&browser_platform=Win32&browser_name=Firefox&browser_version=118.0&browser_online=true&engine_name=Gecko&engine_version=109.0&os_name=Windows&os_version=10&cpu_core_num=16&device_memory=&platform=PC"
+
+"""
+今日头条 DY API
+"""
+DY_TOUTIAO_INFO = "https://aweme.snssdk.com/aweme/v1/play/?video_id={}&ratio=1080p&line=0"
 
 """
 tiktok视频信息
@@ -36,4 +36,22 @@ URL_TYPE_CODE_DICT = {
     58: 'video',
     61: 'video',
     150: 'image'
+}
+
+"""
+哔哩哔哩的头请求
+"""
+BILIBILI_HEADER = {
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 '
+        'Safari/537.36',
+    'referer': 'https://www.bilibili.com',
+}
+
+"""
+通用头请求
+"""
+COMMON_HEADER = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 '
+                  'UBrowser/6.2.4098.3 Safari/537.36'
 }
