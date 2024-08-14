@@ -19,6 +19,16 @@ TIKTOK_VIDEO = "https://api22-normal-c-alisg.tiktokv.com/aweme/v1/feed/"
 GENERAL_REQ_LINK = "http://47.99.158.118/video-crack/v2/parse?content={}"
 
 """
+NCM获取歌曲信息链接
+"""
+NETEASE_API_CN = 'https://www.markingchen.ink'
+
+"""
+NCM临时接口
+"""
+NETEASE_TEMP_API = "https://api.lolimi.cn/API/wydg/api.php?msg={}&n=1"
+
+"""
 小红书下载链接
 """
 XHS_REQ_LINK = "https://www.xiaohongshu.com/explore/"

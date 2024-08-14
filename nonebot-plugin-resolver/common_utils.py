@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 import aiohttp
 import httpx
 import os
@@ -73,6 +75,24 @@ async def download_img(url: str, path: str = '', proxy: str = None, session=None
                 data = await response.read()
                 with open(path, 'wb') as f:
                     f.write(data)
+    return path
+
+
+async def download_audio(url):
+    # 从URL中提取文件名
+    parsed_url = urlparse(url)
+    file_name = parsed_url.path.split('/')[-1]
+    # 去除可能存在的请求参数
+    file_name = file_name.split('?')[0]
+
+    path = os.path.join(os.getcwd(), file_name)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        response.raise_for_status()  # 检查请求是否成功
+
+        async with aiofiles.open(path, 'wb') as file:
+            await file.write(response.content)
     return path
 
 

@@ -1,9 +1,11 @@
 import asyncio
 import json
 import os.path
+import re
 from typing import cast, Iterable, Union
 from urllib.parse import urlparse, parse_qs
 
+import httpx
 from bilibili_api import video, Credential, live, article
 from bilibili_api.favorite_list import get_video_favorite_list_content
 from bilibili_api.opus import Opus
@@ -22,7 +24,7 @@ from .tiktok_utills import generate_x_bogus_url
 from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .ytdlp_utils import get_video_title, download_ytb_video
 from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
-    BILIBILI_HEADER, COMMON_HEADER
+    BILIBILI_HEADER, COMMON_HEADER, NETEASE_API_CN, NETEASE_TEMP_API
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -82,8 +84,8 @@ xhs = on_regex(
 y2b = on_regex(
     r"(.*)(youtube.com|youtu.be)", priority=1
 )
-freyr = on_regex(
-    r"(.*)(music.apple.com|open.spotify.com)"
+ncm = on_regex(
+    r"(.*)(music.163.com|163cn.tv)"
 )
 
 
@@ -527,6 +529,39 @@ async def youtube(bot: Bot, event: Event):
     await auto_video_send(event, target_ytb_video_path, IS_LAGRANGE)
 
 
+@ncm.handle()
+async def netease(bot: Bot, event: Event):
+    message = str(event.message)
+    # 识别短链接
+    if "163cn.tv" in message:
+        message = re.search(r"(http:|https:)\/\/163cn\.tv\/([a-zA-Z0-9]+)", message).group(0)
+        message = str(httpx.head(message, follow_redirects=True).url)
+
+    ncm_id = re.search(r"id=(\d+)", message).group(1)
+    if ncm_id is None:
+        await ncm.finish(Message(f"{GLOBAL_NICKNAME}识别：网易云，获取链接失败"))
+    # 拼接获取信息的链接
+    ncm_detail_url = f'{NETEASE_API_CN}/song/detail?ids={ncm_id}'
+    ncm_detail_resp = httpx.get(ncm_detail_url, headers=COMMON_HEADER)
+    # 获取歌曲名
+    ncm_song = ncm_detail_resp.json()['songs'][0]
+    ncm_title = f'{ncm_song["name"]}-{ncm_song["ar"][0]["name"]}'.replace(r'[\/\?<>\\:\*\|".… ]', "")
+
+    # 对接临时接口
+    ncm_vip_data = httpx.get(f"{NETEASE_TEMP_API.replace('{}', ncm_title)}", headers=COMMON_HEADER).json()
+    ncm_url = ncm_vip_data['mp3']
+    ncm_cover = ncm_vip_data['img']
+    await ncm.send(Message([MessageSegment.image(ncm_cover), MessageSegment.text(f'识别：网易云音乐，{ncm_title}')]))
+    # 下载音频文件后会返回一个下载路径
+    ncm_music_path = await download_audio(ncm_url)
+    # 发送语音
+    await ncm.send(Message(MessageSegment.record(ncm_music_path)))
+    # 发送群文件
+    await upload_both(bot, event, ncm_music_path, f'{ncm_title}.{ncm_music_path.split(".")[-1]}')
+    if os.path.exists(ncm_music_path):
+        os.unlink(ncm_music_path)
+
+
 def auto_determine_send_type(user_id: int, task: str):
     """
         判断是视频还是图片然后发送最后删除，函数在 twitter 这类可以图、视频混合发送的媒体十分有用
@@ -587,6 +622,15 @@ async def send_both(bot: Bot, event: Event, segments: MessageSegment) -> None:
     elif isinstance(event, PrivateMessageEvent):
         await bot.send_private_msg(user_id=event.user_id,
                                    message=Message(segments))
+
+
+async def upload_both(bot: Bot, event: Event, file_path: str, name: str) -> None:
+    if isinstance(event, GroupMessageEvent):
+        # 上传群文件
+        await bot.upload_group_file(group_id=event.group_id, file=file_path, name=name)
+    elif isinstance(event, PrivateMessageEvent):
+        # 上传私聊文件
+        await bot.upload_private_file(user_id=event.user_id, file=file_path, name=name)
 
 
 async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
