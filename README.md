@@ -55,22 +55,7 @@ sudo apt-get install ffmpeg
 5. 【可选】安装`TikTok`&`YouTube`解析必要依赖 不建议直接使用`apt`不是最新版
 
 ```shell
-# debian 海外
-curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ~/.local/bin/yt-dlp
-chmod a+rx ~/.local/bin/yt-dlp
-# debian 国内
-curl -L https://ghproxy.net/https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ~/.local/bin/yt-dlp
-chmod a+rx ~/.local/bin/yt-dlp
-
-# 将/home/YtDlpHome/yt-dlp添加到环境变量（下面二选一）
-vim ~/.bashrc  # 如果你使用 bash
-vim ~/.zshrc   # 如果你使用 zsh
-# 添加到最后一行
-export PATH="/home/YtDlpHome:$PATH"
-
-# 刷新环境变量即可
-source ~/.bashrc  # 如果你使用 bash
-source ~/.zshrc   # 如果你使用 zsh
+pip install yt-dlp
 ```
 ## ⚙️ 配置
 
