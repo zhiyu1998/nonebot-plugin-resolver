@@ -195,10 +195,14 @@ async def bilibili(bot: Bot, event: Event) -> None:
             # 解析查询字符串中的参数
             query_params = parse_qs(parsed_url.query)
             # 获取指定参数的值，如果参数不存在，则返回None
-            page_num = int(query_params.get('p', [0])[0])
+            page_num = int(query_params.get('p', [0])[0]) - 1
         else:
             page_num = 0
-        video_duration = video_info['pages'][page_num]['duration']
+        if 'duration' in video_info['pages'][page_num]:
+            video_duration = video_info['pages'][page_num].get('duration', video_info.get('duration'))
+        else:
+            # 如果索引超出范围，使用 video_info['duration'] 或者其他默认值
+            video_duration = video_info.get('duration', 0)
     # 删除特殊字符
     video_title = delete_boring_characters(video_title)
     # 截断下载时间比较长的视频
@@ -212,6 +216,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
             Message(MessageSegment.image(video_cover)) + Message(
                 f"\n✅ {GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
+    logger.info(page_num)
     download_url_data = await v.get_download_url(page_index=page_num)
     detecter = VideoDownloadURLDataDetecter(download_url_data)
     streams = detecter.detect_best_streams()
