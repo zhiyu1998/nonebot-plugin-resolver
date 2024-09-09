@@ -1,30 +1,27 @@
 import asyncio
 import json
 import os.path
-import re
 from typing import cast, Iterable, Union
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs
 
-import httpx
 from bilibili_api import video, Credential, live, article
 from bilibili_api.favorite_list import get_video_favorite_list_content
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter
-
 from nonebot import on_regex, get_driver, logger
-from nonebot.plugin import PluginMetadata
-from nonebot.matcher import current_bot
 from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment
 from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageEvent
+from nonebot.matcher import current_bot
+from nonebot.plugin import PluginMetadata
 
+from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
+from .bili23_utils import download_b_file, merge_file_to_mp4, extra_bili_info
 from .common_utils import *
 from .config import Config
-from .bili23_utils import download_b_file, merge_file_to_mp4, extra_bili_info
-from .tiktok_utills import generate_x_bogus_url
-from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
-from .ytdlp_utils import get_video_title, download_ytb_video
 from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
     BILIBILI_HEADER, COMMON_HEADER, NETEASE_API_CN, NETEASE_TEMP_API
+from .tiktok_utills import generate_x_bogus_url
+from .ytdlp_utils import get_video_title, download_ytb_video
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -38,7 +35,6 @@ __plugin_meta__ = PluginMetadata(
 
 # 配置加载
 global_config = Config.parse_obj(get_driver().config.dict())
-logger.info(f"keys: {global_config}")
 # 全局名称
 GLOBAL_NICKNAME: str = str(getattr(global_config, "r_global_nickname", "R插件极速版"))
 # 🪜地址
@@ -51,15 +47,10 @@ IS_LAGRANGE: bool = bool(getattr(global_config, "is_lagrange", False))
 VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
 # 哔哩哔哩的 SESSDATA
 BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
-logger.info(f"session: {BILI_SESSDATA}")
 # 构建哔哩哔哩的Credential
 credential = Credential(sessdata=BILI_SESSDATA)
 
 # 代理加载
-aiohttp_proxies = {
-    'http': resolver_proxy,
-    'https': resolver_proxy
-}
 httpx_proxies = {
     "http://": resolver_proxy,
     "https://": resolver_proxy,
@@ -90,7 +81,7 @@ ncm = on_regex(
 
 
 @bili23.handle()
-async def bilibili(bot: Bot, event: Event) -> None:
+async def bilibili(bot: Bot, event:   Event) -> None:
     """
         哔哩哔哩解析
     :param bot:
@@ -175,7 +166,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
             favs.append(
                 [MessageSegment.image(cover),
                  MessageSegment.text(f'🧉 标题：{title}\n📝 简介：{intro}\n🔗 链接：{link}')])
-        await bili23.send(f'✅ {GLOBAL_NICKNAME}识别：哔哩哔哩收藏夹，正在为你找出相关链接请稍等...')
+        await bili23.send(f'{GLOBAL_NICKNAME}识别：哔哩哔哩收藏夹，正在为你找出相关链接请稍等...')
         await bili23.send(make_node_segment(bot.self_id, favs))
         return
     # 获取视频信息
@@ -212,11 +203,11 @@ async def bilibili(bot: Bot, event: Event) -> None:
     online_str = f'🏄‍♂️ 总共 {online["total"]} 人在观看，{online["count"]} 人在网页端观看'
     if video_duration <= VIDEO_DURATION_MAXIMUM:
         await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
-            f"\n✅ {GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
+            f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
     else:
         return await bili23.finish(
             Message(MessageSegment.image(video_cover)) + Message(
-                f"\n✅ {GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
+                f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n简介：{video_desc}\n{online_str}\n---------\n⚠️ 当前视频时长 {video_duration // 60} 分钟，超过管理员设置的最长时间 {VIDEO_DURATION_MAXIMUM // 60} 分钟！"))
     # 获取下载链接
     logger.info(page_num)
     download_url_data = await v.get_download_url(page_index=page_num)
@@ -330,7 +321,6 @@ async def tiktok(event: Event) -> None:
 
     # 海外服务器判断
     proxy = None if IS_OVERSEA else httpx_proxies
-    # logger.info(proxy)
 
     url_reg = r"(http:|https:)\/\/www.tiktok.com\/[A-Za-z\d._?%&+\-=\/#@]*"
     url_short_reg = r"(http:|https:)\/\/vt.tiktok.com\/[A-Za-z\d._?%&+\-=\/#]*"
@@ -338,12 +328,12 @@ async def tiktok(event: Event) -> None:
 
     if "vt.tiktok" in url:
         temp_url = re.search(url_short_reg, url)[0]
-        temp_resp = httpx.get(temp_url, follow_redirects=True, proxies=httpx_proxies)
+        temp_resp = httpx.get(temp_url, follow_redirects=True, proxies=proxy)
         url = temp_resp.url
     elif "vm.tiktok" in url:
         temp_url = re.search(url_short_reg2, url)[0]
         temp_resp = httpx.get(temp_url, headers={ "User-Agent": "facebookexternalhit/1.1" }, follow_redirects=True,
-                              proxies=httpx_proxies)
+                              proxies=proxy)
         url = str(temp_resp.url)
         # logger.info(url)
     else:
@@ -520,11 +510,14 @@ async def youtube(bot: Bot, event: Event):
         r"(?:https?:\/\/)?(www\.)?youtube\.com\/[A-Za-z\d._?%&+\-=\/#]*|(?:https?:\/\/)?youtu\.be\/[A-Za-z\d._?%&+\-=\/#]*",
         str(event.message).strip())[0]
 
-    title = get_video_title(msg_url, IS_OVERSEA, resolver_proxy)
+    # 海外服务器判断
+    proxy = None if IS_OVERSEA else httpx_proxies
+
+    title = get_video_title(msg_url, IS_OVERSEA, proxy)
 
     await y2b.send(Message(f"{GLOBAL_NICKNAME}识别：油管，{title}\n"))
 
-    target_ytb_video_path = await download_ytb_video(msg_url, IS_OVERSEA, os.getcwd(), resolver_proxy)
+    target_ytb_video_path = await download_ytb_video(msg_url, IS_OVERSEA, os.getcwd(), proxy)
 
     await auto_video_send(event, target_ytb_video_path, IS_LAGRANGE)
 
@@ -539,7 +532,7 @@ async def netease(bot: Bot, event: Event):
 
     ncm_id = re.search(r"id=(\d+)", message).group(1)
     if ncm_id is None:
-        await ncm.finish(Message(f"{GLOBAL_NICKNAME}识别：网易云，获取链接失败"))
+        await ncm.finish(Message(f"❌ {GLOBAL_NICKNAME}识别：网易云，获取链接失败"))
     # 拼接获取信息的链接
     ncm_detail_url = f'{NETEASE_API_CN}/song/detail?ids={ncm_id}'
     ncm_detail_resp = httpx.get(ncm_detail_url, headers=COMMON_HEADER)
@@ -551,7 +544,7 @@ async def netease(bot: Bot, event: Event):
     ncm_vip_data = httpx.get(f"{NETEASE_TEMP_API.replace('{}', ncm_title)}", headers=COMMON_HEADER).json()
     ncm_url = ncm_vip_data['mp3']
     ncm_cover = ncm_vip_data['img']
-    await ncm.send(Message([MessageSegment.image(ncm_cover), MessageSegment.text(f'识别：网易云音乐，{ncm_title}')]))
+    await ncm.send(Message([MessageSegment.image(ncm_cover), MessageSegment.text(f'{GLOBAL_NICKNAME}识别：网易云音乐，{ncm_title}')]))
     # 下载音频文件后会返回一个下载路径
     ncm_music_path = await download_audio(ncm_url)
     # 发送语音
@@ -625,6 +618,14 @@ async def send_both(bot: Bot, event: Event, segments: MessageSegment) -> None:
 
 
 async def upload_both(bot: Bot, event: Event, file_path: str, name: str) -> None:
+    """
+        上传文件，不限于群和个人
+    :param bot:
+    :param event:
+    :param file_path:
+    :param name:
+    :return:
+    """
     if isinstance(event, GroupMessageEvent):
         # 上传群文件
         await bot.upload_group_file(group_id=event.group_id, file=file_path, name=name)
