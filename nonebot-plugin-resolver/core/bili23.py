@@ -3,7 +3,7 @@ import subprocess
 import aiofiles
 
 from nonebot import logger
-from .constants import BILIBILI_HEADER
+from ..constants import BILIBILI_HEADER
 
 
 async def download_b_file(url, full_file_name, progress_callback):

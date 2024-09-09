@@ -9,7 +9,7 @@ import aiofiles
 
 from typing import List, Dict
 
-from .constants import COMMON_HEADER
+from ..constants import COMMON_HEADER
 
 
 async def download_video(url, proxy: str = None):

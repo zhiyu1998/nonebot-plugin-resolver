@@ -14,14 +14,15 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageE
 from nonebot.matcher import current_bot
 from nonebot.plugin import PluginMetadata
 
-from .acfun_utils import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
-from .bili23_utils import download_b_file, merge_file_to_mp4, extra_bili_info
-from .common_utils import *
 from .config import Config
-from .constants import URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
-    BILIBILI_HEADER, COMMON_HEADER, NETEASE_API_CN, NETEASE_TEMP_API
-from .tiktok_utills import generate_x_bogus_url
-from .ytdlp_utils import get_video_title, download_ytb_video
+# noinspection PyUnresolvedReferences
+from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
+    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API
+from .core.acfun import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
+from .core.bili23 import download_b_file, merge_file_to_mp4, extra_bili_info
+from .core.common import *
+from .core.tiktok import generate_x_bogus_url
+from .core.ytdlp import get_video_title, download_ytb_video
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -645,14 +646,15 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
     try:
         bot: Bot = cast(Bot, current_bot.get())
 
+        # 如果data以"http"开头，先下载视频
+        if data_path is not None and data_path.startswith("http"):
+            data_path = await download_video(data_path)
+
         # 如果是Lagrange，转换成CQ码发送
         if is_lagrange:
             cq_code = f'[CQ:video,file={data_path}]'
             await bot.send(event, Message(cq_code))
         else:
-            # 如果data以"http"开头，先下载视频
-            if data_path.startswith("http"):
-                data_path = await download_video(data_path)
             # 根据事件类型发送不同的消息
             await send_both(bot, event, MessageSegment.video(f'file://{data_path}'))
     except Exception as e:

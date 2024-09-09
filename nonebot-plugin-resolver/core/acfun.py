@@ -10,6 +10,7 @@ headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83'
 }
 
+
 def parse_url(url: str):
     """
         解析acfun链接
@@ -79,6 +80,7 @@ async def download_m3u8_videos(m3u8_full_url, i):
                 async for chunk in resp.aiter_bytes():
                     f.write(chunk)
 
+
 def escape_special_chars(str_json):
     return str_json.replace('\\\\"', '\\"').replace('\\"', '"')
 
@@ -98,8 +100,8 @@ def parse_video_name(video_info: json):
     raw = '_'.join([ac_id, title, author, upload_time, desc])[:101]
     return raw
 
-def merge_ac_file_to_mp4(ts_names, full_file_name, should_delete = True):
 
+def merge_ac_file_to_mp4(ts_names, full_file_name, should_delete=True):
     concat_str = '\n'.join([f"file {i}.ts" for i, d in enumerate(ts_names)])
     # print(concat_str)
     with open('file.txt', 'w') as f:
@@ -108,13 +110,12 @@ def merge_ac_file_to_mp4(ts_names, full_file_name, should_delete = True):
     subprocess.call(f'ffmpeg -y -f concat -safe 0 -i "file.txt" -c copy "{full_file_name}"', shell=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-    )
+                    )
     if should_delete:
         os.unlink('file.txt')
         # os.unlink(full_file_name)
         for i in range(len(ts_names)):
             os.unlink(f'{i}.ts')
-
 
 
 def parse_video_name_fixed(video_info: json):
