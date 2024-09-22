@@ -44,7 +44,7 @@ fi
 
 # 使用git clone下载指定的GitHub仓库
 echo "[nonebot-plugin-resolver] 开始克隆GitHub仓库..."
-git clone https://githubfast.com/zhiyu1998/nonebot-plugin-resolver.git
+git clone https://ghproxy.net/https://github.com/zhiyu1998/nonebot-plugin-resolver.git
 
 # 进入下载的仓库文件夹
 cd nonebot-plugin-resolver
