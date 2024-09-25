@@ -1,7 +1,7 @@
 <div align="center">
   <a href="https://v2.nonebot.dev/store"><img src="https://s2.loli.net/2024/08/13/ZlwxWz3Sh2i1bNU.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
   <br>
-  <p><img src="https://img.yvan.eu.org/mt/2024/08/13/66baeb990cf7f.png" width="240" alt="NoneBotPluginText"></p>
+  <p><img src="https://github.com/A-kirami/nonebot-plugin-template/blob/resources/NoneBotPlugin.svg" width="240" alt="NoneBotPluginText"></p>
 </div>
 
 <div align="center">
