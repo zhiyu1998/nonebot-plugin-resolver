@@ -13,12 +13,13 @@ import httpx
 from ..constants import COMMON_HEADER
 
 
-async def download_video(url, proxy: str = None):
+async def download_video(url, proxy: str = None, ext_headers=None) -> str:
     """
     异步下载（httpx）视频，并支持通过代理下载。
     文件名将使用时间戳生成，以确保唯一性。
     如果提供了代理地址，则会通过该代理下载视频。
 
+    :param ext_headers:
     :param url: 要下载的视频的URL。
     :param proxy: 可选，下载视频时使用的代理服务器的URL。
     :return: 保存视频的路径。
@@ -28,7 +29,7 @@ async def download_video(url, proxy: str = None):
 
     # 配置代理
     client_config = {
-        'headers': COMMON_HEADER,
+        'headers': ext_headers | COMMON_HEADER,
         'timeout': httpx.Timeout(60, connect=5.0),
         'follow_redirects': True
     }
@@ -48,7 +49,7 @@ async def download_video(url, proxy: str = None):
         return None
 
 
-async def download_img(url: str, path: str = '', proxy: str = None, session=None) -> str:
+async def download_img(url: str, path: str = '', proxy: str = None, session=None, headers=None) -> str:
     """
     异步下载（aiohttp）网络图片，并支持通过代理下载。
     如果未指定path，则图片将保存在当前工作目录并以图片的文件名命名。
@@ -64,14 +65,14 @@ async def download_img(url: str, path: str = '', proxy: str = None, session=None
     # 单个文件下载
     if session is None:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, proxy=proxy) as response:
+            async with session.get(url, proxy=proxy, headers=headers) as response:
                 if response.status == 200:
                     data = await response.read()
                     with open(path, 'wb') as f:
                         f.write(data)
     # 多个文件异步下载
     else:
-        async with session.get(url, proxy=proxy) as response:
+        async with session.get(url, proxy=proxy, headers=headers) as response:
             if response.status == 200:
                 data = await response.read()
                 with open(path, 'wb') as f:

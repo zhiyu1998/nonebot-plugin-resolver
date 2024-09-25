@@ -18,12 +18,14 @@ from nonebot.plugin import PluginMetadata
 from .config import Config
 # noinspection PyUnresolvedReferences
 from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
-    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH
+    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH, \
+    WEIBO_SINGLE_INFO
 from .core.acfun import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .core.bili23 import download_b_file, merge_file_to_mp4, extra_bili_info
 from .core.common import *
 from .core.tiktok import generate_x_bogus_url
 from .core.ytdlp import get_video_title, download_ytb_video
+from .core.weibo import mid2id
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -38,7 +40,7 @@ __plugin_meta__ = PluginMetadata(
 # 配置加载
 global_config = Config.parse_obj(get_driver().config.dict())
 # 全局名称
-GLOBAL_NICKNAME: str = str(getattr(global_config, "r_global_nickname", "R插件极速版"))
+GLOBAL_NICKNAME: str = str(getattr(global_config, "r_global_nickname", ""))
 # 🪜地址
 resolver_proxy: str = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
 # 是否是海外服务器
@@ -51,12 +53,6 @@ VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum
 BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 # 构建哔哩哔哩的Credential
 credential = Credential(sessdata=BILI_SESSDATA)
-
-# 代理加载
-httpx_proxies = {
-    "http://": resolver_proxy,
-    "https://": resolver_proxy,
-}
 
 bili23 = on_regex(
     r"(.*)(bilibili.com|b23.tv|BV[0-9a-zA-Z]{10})", priority=1
@@ -79,6 +75,9 @@ y2b = on_regex(
 )
 ncm = on_regex(
     r"(.*)(music.163.com|163cn.tv)"
+)
+weibo = on_regex(
+    r"(.*)(weibo.com|m.weibo.cn)"
 )
 
 enable_resolve = on_command('开启解析', permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
@@ -411,7 +410,7 @@ async def tiktok(event: Event) -> None:
     url: str = str(event.message).strip()
 
     # 海外服务器判断
-    proxy = None if IS_OVERSEA else httpx_proxies
+    proxy = None if IS_OVERSEA else resolver_proxy
 
     url_reg = r"(http:|https:)\/\/www.tiktok.com\/[A-Za-z\d._?%&+\-=\/#@]*"
     url_short_reg = r"(http:|https:)\/\/vt.tiktok.com\/[A-Za-z\d._?%&+\-=\/#]*"
@@ -606,7 +605,7 @@ async def youtube(bot: Bot, event: Event):
         str(event.message).strip())[0]
 
     # 海外服务器判断
-    proxy = None if IS_OVERSEA else httpx_proxies
+    proxy = None if IS_OVERSEA else resolver_proxy
 
     title = get_video_title(msg_url, IS_OVERSEA, proxy)
 
@@ -650,6 +649,75 @@ async def netease(bot: Bot, event: Event):
     await upload_both(bot, event, ncm_music_path, f'{ncm_title}.{ncm_music_path.split(".")[-1]}')
     if os.path.exists(ncm_music_path):
         os.unlink(ncm_music_path)
+
+
+@weibo.handle()
+@resolve_handler
+async def wb(bot: Bot, event: Event):
+    message = str(event.message)
+    weibo_id = None
+    # 判断是否包含 "m.weibo.cn"
+    if "m.weibo.cn" in message:
+        # https://m.weibo.cn/detail/4976424138313924
+        match = re.search(r'(?<=detail/)[A-Za-z\d]+', message) or re.search(r'(?<=m.weibo.cn/)[A-Za-z\d]+/[A-Za-z\d]+',
+                                                                            message)
+        weibo_id = match.group(0) if match else None
+
+    # 判断是否包含 "weibo.com/tv/show" 且包含 "mid="
+    elif "weibo.com/tv/show" in message and "mid=" in message:
+        # https://weibo.com/tv/show/1034:5007449447661594?mid=5007452630158934
+        match = re.search(r'(?<=mid=)[A-Za-z\d]+', message)
+        if match:
+            weibo_id = mid2id(match.group(0))
+
+    # 判断是否包含 "weibo.com"
+    elif "weibo.com" in message:
+        # https://weibo.com/1707895270/5006106478773472
+        match = re.search(r'(?<=weibo.com/)[A-Za-z\d]+/[A-Za-z\d]+', message)
+        weibo_id = match.group(0) if match else None
+
+    # 无法获取到id则返回失败信息
+    if not weibo_id:
+        await weibo.finish(Message("解析失败：无法获取到wb的id"))
+    # 最终获取到的 id
+    weibo_id = weibo_id.split("/")[1] if "/" in weibo_id else weibo_id
+    logger.info(weibo_id)
+    # 请求数据
+    resp = httpx.get(WEIBO_SINGLE_INFO.replace('{}', weibo_id), headers={
+                                                                            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                                                                            "cookie": "_T_WM=40835919903; WEIBOCN_FROM=1110006030; MLOGIN=0; XSRF-TOKEN=4399c8",
+                                                                            "Referer": f"https://m.weibo.cn/detail/{id}",
+                                                                        } | COMMON_HEADER).json()
+    weibo_data = resp['data']
+    logger.info(weibo_data)
+    text, status_title, source, region_name, pics, page_info = (weibo_data.get(key, None) for key in
+                                                                ['text', 'status_title', 'source', 'region_name',
+                                                                 'pics', 'page_info'])
+    # 发送消息
+    await weibo.send(
+        Message(
+            f"{GLOBAL_NICKNAME}识别：微博，{re.sub(r'<[^>]+>', '', text)}\n{status_title}\n{source}\t{region_name if region_name else ''}"))
+    if pics:
+        download_img_funcs = [asyncio.create_task(download_img(item, '', headers={
+                                                                                     "Referer": "http://blog.sina.com.cn/"
+                                                                                 } | COMMON_HEADER)) for item in pics]
+        links_path = await asyncio.gather(*download_img_funcs)
+        # 发送图片
+        links = make_node_segment(bot.self_id,
+                                  [MessageSegment.image(f"file://{link}") for link in links_path])
+        # 发送异步后的数据
+        await send_forward_both(bot, event, links)
+        # 清除图片
+        for temp in links_path:
+            os.unlink(temp)
+    if page_info:
+        video_url = page_info.get('urls', '').get('mp4_720p_mp4', '') or page_info.get('urls', '').get('mp4_hd_mp4', '')
+        if video_url:
+            path = await download_video(video_url, ext_headers={
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                "referer": "https://weibo.com/"
+            })
+            await auto_video_send(event, path, IS_LAGRANGE)
 
 
 def auto_determine_send_type(user_id: int, task: str):
