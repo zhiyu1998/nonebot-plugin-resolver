@@ -27,9 +27,17 @@ async def download_video(url, proxy: str = None, ext_headers=None) -> str:
     # 使用时间戳生成文件名，确保唯一性
     path = os.path.join(os.getcwd(), f"{int(time.time())}.mp4")
 
+    # 判断 ext_headers 是否为 None
+    if ext_headers is None:
+        headers = COMMON_HEADER
+    else:
+        # 使用 update 方法合并两个字典
+        headers = COMMON_HEADER.copy()  # 先复制 COMMON_HEADER
+        headers.update(ext_headers)  # 然后更新 ext_headers
+
     # 配置代理
     client_config = {
-        'headers': ext_headers | COMMON_HEADER,
+        'headers': headers,
         'timeout': httpx.Timeout(60, connect=5.0),
         'follow_redirects': True
     }
