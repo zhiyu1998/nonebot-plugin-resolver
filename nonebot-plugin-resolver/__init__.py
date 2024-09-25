@@ -1,6 +1,6 @@
-import asyncio
 import json
 import os.path
+from functools import wraps
 from typing import cast, Iterable, Union
 from urllib.parse import parse_qs
 
@@ -8,16 +8,17 @@ from bilibili_api import video, Credential, live, article
 from bilibili_api.favorite_list import get_video_favorite_list_content
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter
-from nonebot import on_regex, get_driver, logger
-from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment
+from nonebot import on_regex, get_driver, logger, on_command
+from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment, GROUP_ADMIN, GROUP_OWNER
 from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageEvent
 from nonebot.matcher import current_bot
+from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata
 
 from .config import Config
 # noinspection PyUnresolvedReferences
 from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
-    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API
+    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH
 from .core.acfun import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .core.bili23 import download_b_file, merge_file_to_mp4, extra_bili_info
 from .core.common import *
@@ -80,9 +81,95 @@ ncm = on_regex(
     r"(.*)(music.163.com|163cn.tv)"
 )
 
+enable_resolve = on_command('开启解析', permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+disable_resolve = on_command('关闭解析', permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+check_resolve = on_command('查看关闭解析', permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+
+# 内存中关闭解析的名单，第一次先进行初始化
+resolve_shutdown_list_in_memory: list = load_or_initialize_list(RESOLVE_SHUTDOWN_LIST_PICKLE_PATH)
+
+
+def resolve_handler(func):
+    """
+    解析控制装饰器
+    :param func:
+    :return:
+    """
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        # 假设 `event` 是通过被装饰函数的参数传入的
+        event = kwargs.get('event') or args[1]  # 根据位置参数或者关键字参数获取 event
+        send_id = get_id_both(event)
+
+        if send_id not in resolve_shutdown_list_in_memory:
+            return await func(*args, **kwargs)
+        else:
+            logger.info(f"发送者/群 {send_id} 已关闭解析，不再执行")
+            return None
+
+    return wrapper
+
+
+@enable_resolve.handle()
+async def enable(bot: Bot, event: Event):
+    """
+    开启解析
+    :param bot:
+    :param event:
+    :return:
+    """
+    send_id = get_id_both(event)
+    if send_id in resolve_shutdown_list_in_memory:
+        resolve_shutdown_list_in_memory.remove(send_id)
+        await save_pickle_async(resolve_shutdown_list_in_memory, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH)
+        logger.info(resolve_shutdown_list_in_memory)
+        await enable_resolve.finish('解析已开启')
+    else:
+        await enable_resolve.finish('解析已开启，无需重复开启')
+
+
+@disable_resolve.handle()
+async def disable(bot: Bot, event: Event):
+    """
+    关闭解析
+    :param bot:
+    :param event:
+    :return:
+    """
+    send_id = get_id_both(event)
+    if send_id not in resolve_shutdown_list_in_memory:
+        resolve_shutdown_list_in_memory.append(send_id)
+        await save_pickle_async(resolve_shutdown_list_in_memory, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH)
+        logger.info(resolve_shutdown_list_in_memory)
+        await disable_resolve.finish('解析已关闭')
+    else:
+        await disable_resolve.finish('解析已关闭，无需重复关闭')
+
+
+@check_resolve.handle()
+async def check_disable(bot: Bot, event: Event):
+    """
+    查看关闭解析
+    :param bot:
+    :param event:
+    :return:
+    """
+    memory_disable_list = [str(item) + "--" + (await bot.get_group_info(group_id=item))['group_name'] for item in
+                           resolve_shutdown_list_in_memory]
+    memory_disable_list = "1️⃣在【内存】中的名单有：\n" + '\n'.join(memory_disable_list)
+    persistence_disable_list = [str(item) + "--" + (await bot.get_group_info(group_id=item))['group_name'] for item in
+                                list(read_pickle_sync(RESOLVE_SHUTDOWN_LIST_PICKLE_PATH))]
+    persistence_disable_list = "2️⃣在【持久层】中的名单有：\n" + '\n'.join(persistence_disable_list)
+
+    await check_resolve.send(Message("已经发送到私信了~"))
+    await bot.send_private_msg(user_id=event.user_id, message=Message(
+        "[nonebot-plugin-resolver 关闭名单如下：]" + "\n\n" + memory_disable_list + '\n\n' + persistence_disable_list))
+
 
 @bili23.handle()
-async def bilibili(bot: Bot, event:   Event) -> None:
+@resolve_handler
+async def bilibili(bot: Bot, event: Event) -> None:
     """
         哔哩哔哩解析
     :param bot:
@@ -202,6 +289,7 @@ async def bilibili(bot: Bot, event:   Event) -> None:
     # 截断下载时间比较长的视频
     online = await v.get_online()
     online_str = f'🏄‍♂️ 总共 {online["total"]} 人在观看，{online["count"]} 人在网页端观看'
+    logger.info(f'=================={VIDEO_DURATION_MAXIMUM}')
     if video_duration <= VIDEO_DURATION_MAXIMUM:
         await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
             f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
@@ -238,6 +326,7 @@ async def bilibili(bot: Bot, event:   Event) -> None:
 
 
 @douyin.handle()
+@resolve_handler
 async def dy(bot: Bot, event: Event) -> None:
     """
         抖音解析
@@ -311,6 +400,7 @@ async def dy(bot: Bot, event: Event) -> None:
 
 
 @tik.handle()
+@resolve_handler
 async def tiktok(event: Event) -> None:
     """
         tiktok解析
@@ -349,6 +439,7 @@ async def tiktok(event: Event) -> None:
 
 
 @acfun.handle()
+@resolve_handler
 async def ac(event: Event) -> None:
     """
         acfun解析
@@ -373,6 +464,7 @@ async def ac(event: Event) -> None:
 
 
 @twit.handle()
+@resolve_handler
 async def twitter(bot: Bot, event: Event):
     """
         推特解析
@@ -427,6 +519,7 @@ async def twitter(bot: Bot, event: Event):
 
 
 @xhs.handle()
+@resolve_handler
 async def xiaohongshu(bot: Bot, event: Event):
     """
         小红书解析
@@ -506,6 +599,7 @@ async def xiaohongshu(bot: Bot, event: Event):
 
 
 @y2b.handle()
+@resolve_handler
 async def youtube(bot: Bot, event: Event):
     msg_url = re.search(
         r"(?:https?:\/\/)?(www\.)?youtube\.com\/[A-Za-z\d._?%&+\-=\/#]*|(?:https?:\/\/)?youtu\.be\/[A-Za-z\d._?%&+\-=\/#]*",
@@ -524,6 +618,7 @@ async def youtube(bot: Bot, event: Event):
 
 
 @ncm.handle()
+@resolve_handler
 async def netease(bot: Bot, event: Event):
     message = str(event.message)
     # 识别短链接
@@ -545,7 +640,8 @@ async def netease(bot: Bot, event: Event):
     ncm_vip_data = httpx.get(f"{NETEASE_TEMP_API.replace('{}', ncm_title)}", headers=COMMON_HEADER).json()
     ncm_url = ncm_vip_data['mp3']
     ncm_cover = ncm_vip_data['img']
-    await ncm.send(Message([MessageSegment.image(ncm_cover), MessageSegment.text(f'{GLOBAL_NICKNAME}识别：网易云音乐，{ncm_title}')]))
+    await ncm.send(Message(
+        [MessageSegment.image(ncm_cover), MessageSegment.text(f'{GLOBAL_NICKNAME}识别：网易云音乐，{ncm_title}')]))
     # 下载音频文件后会返回一个下载路径
     ncm_music_path = await download_audio(ncm_url)
     # 发送语音
@@ -635,6 +731,13 @@ async def upload_both(bot: Bot, event: Event, file_path: str, name: str) -> None
         await bot.upload_private_file(user_id=event.user_id, file=file_path, name=name)
 
 
+def get_id_both(event: Event):
+    if isinstance(event, GroupMessageEvent):
+        return event.group_id
+    elif isinstance(event, PrivateMessageEvent):
+        return event.user_id
+
+
 async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
     """
     拉格朗日自动转换成CQ码发送
@@ -655,6 +758,14 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
             cq_code = f'[CQ:video,file={data_path}]'
             await bot.send(event, Message(cq_code))
         else:
+            # 检测文件大小
+            file_size_in_mb = get_file_size_mb(data_path)
+            # 如果视频大于 100 MB 自动转换为群文件
+            if file_size_in_mb > VIDEO_MAX_MB:
+                await bot.send(event, Message(
+                    f"当前解析文件 {file_size_in_mb} MB 大于 {VIDEO_MAX_MB} MB，改用文件方式发送，请稍等..."))
+                await upload_both(bot, event, data_path, data_path.split('/')[-1])
+                return
             # 根据事件类型发送不同的消息
             await send_both(bot, event, MessageSegment.video(f'file://{data_path}'))
     except Exception as e:

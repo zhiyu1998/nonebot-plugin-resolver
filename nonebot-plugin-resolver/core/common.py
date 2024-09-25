@@ -1,13 +1,14 @@
-from urllib.parse import urlparse
-
-import aiohttp
-import httpx
+import asyncio
 import os
+import pickle
 import re
 import time
-import aiofiles
+from typing import List, Dict, Any
+from urllib.parse import urlparse
 
-from typing import List, Dict
+import aiofiles
+import aiohttp
+import httpx
 
 from ..constants import COMMON_HEADER
 
@@ -68,7 +69,7 @@ async def download_img(url: str, path: str = '', proxy: str = None, session=None
                     data = await response.read()
                     with open(path, 'wb') as f:
                         f.write(data)
-    #多个文件异步下载
+    # 多个文件异步下载
     else:
         async with session.get(url, proxy=proxy) as response:
             if response.status == 200:
@@ -128,3 +129,72 @@ def remove_files(file_paths: List[str]) -> Dict[str, str]:
             results[file_path] = 'don\'t exist'
 
     return results
+
+
+def get_file_size_mb(file_path):
+    """
+    判断当前文件的大小是多少MB
+    :param file_path:
+    :return:
+    """
+    # 获取文件大小（以字节为单位）
+    file_size_bytes = os.path.getsize(file_path)
+
+    # 将字节转换为 MB 并取整
+    file_size_mb = int(file_size_bytes / (1024 * 1024))
+
+    return file_size_mb
+
+
+def ensure_directory_exists(file_path: str):
+    # 获取文件路径的目录部分
+    directory = os.path.dirname(file_path)
+
+    # 如果目录不存在，递归创建目录
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
+def load_or_initialize_list(file_path: str) -> List[Any]:
+    """
+    从文件中加载数据，或者如果文件不存在或内容为空，初始化为一个空的 list
+
+    Parameters:
+    file_path (str): pickle 文件的路径
+
+    Returns:
+    List: 加载的 list，如果文件不存在或内容为空，将返回一个空的 list
+    """
+    # 确保目录存在
+    ensure_directory_exists(file_path)
+
+    try:
+        # 尝试从 pickle 文件中加载数据
+        my_list = read_pickle_sync(file_path)
+
+        # 检查加载的数据是否为空
+        if not my_list:
+            my_list = []
+    except (FileNotFoundError, EOFError):
+        # 如果文件不存在或内容为空，初始化为一个空的 list
+        my_list = []
+
+    return my_list
+
+
+def read_pickle_sync(filename):
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
+
+
+# 同步的pickle写入函数
+def save_pickle_sync(data, filename):
+    with open(filename, 'wb') as f:
+        pickle.dump(data, f)
+
+
+# 异步函数
+async def save_pickle_async(data, filename):
+    loop = asyncio.get_event_loop()
+    # 使用 run_in_executor 将同步操作放入线程池执行
+    await loop.run_in_executor(None, save_pickle_sync, data, filename)

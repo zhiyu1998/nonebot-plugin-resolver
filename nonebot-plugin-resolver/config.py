@@ -10,3 +10,4 @@ class Config(BaseModel, extra=Extra.ignore):
     bili_sessdata: Optional[str] = ''
     r_global_nickname: Optional[str] = ''
     resolver_proxy: Optional[str] = 'http://127.0.0.1:7890'
+    video_duration_maximum: Optional[int] = 480
