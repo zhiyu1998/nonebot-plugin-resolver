@@ -14,12 +14,13 @@ from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageE
 from nonebot.matcher import current_bot
 from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata
+from nonebot.rule import to_me
 
 from .config import Config
 # noinspection PyUnresolvedReferences
 from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
     BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH, \
-    WEIBO_SINGLE_INFO
+    WEIBO_SINGLE_INFO, KUGOU_TEMP_API
 from .core.acfun import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .core.bili23 import download_b_file, merge_file_to_mp4, extra_bili_info
 from .core.common import *
@@ -79,10 +80,13 @@ ncm = on_regex(
 weibo = on_regex(
     r"(.*)(weibo.com|m.weibo.cn)"
 )
+kg = on_regex(
+    r"(.*)(kugou.com)"
+)
 
-enable_resolve = on_command('开启解析', permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
-disable_resolve = on_command('关闭解析', permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
-check_resolve = on_command('查看关闭解析', permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+enable_resolve = on_command('开启解析', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+disable_resolve = on_command('关闭解析', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+check_resolve = on_command('查看关闭解析', permission=SUPERUSER)
 
 # 内存中关闭解析的名单，第一次先进行初始化
 resolve_shutdown_list_in_memory: list = load_or_initialize_list(RESOLVE_SHUTDOWN_LIST_PICKLE_PATH)
@@ -651,6 +655,65 @@ async def netease(bot: Bot, event: Event):
         os.unlink(ncm_music_path)
 
 
+
+@kg.handle()
+@resolve_handler
+async def kugou(bot: Bot, event: Event):
+    message = str(event.message)
+    # logger.info(message)
+    reg1 = r"https?://.*?kugou\.com.*?(?=\s|$|\n)"
+    reg2 = r'jumpUrl":\s*"(https?:\\/\\/[^"]+)"'
+    reg3 = r'jumpUrl":\s*"(https?://[^"]+)"'
+    # 处理卡片问题
+    if 'com.tencent.structmsg' in message:
+        match = re.search(reg2, message)
+        if match:
+            get_url = match.group(1)
+        else:
+            match = re.search(reg3, message)
+            if match:
+                get_url = match.group(1)
+            else:
+                await kg.send(Message(f"{GLOBAL_NICKNAME}\n来源：【酷狗音乐】\n获取链接失败"))
+                get_url = None
+                return
+        if get_url:
+            url = json.loads('"' + get_url + '"')
+    else:
+        match = re.search(reg1, message)
+        url = match.group()
+
+        # 使用 httpx 获取 URL 的标题
+    response = httpx.get(url, follow_redirects=True)
+    if response.status_code == 200:
+        title = response.text
+        get_name = r"<title>(.*?)_高音质在线试听"
+        name = re.search(get_name, title)
+        if name:
+            kugou_title = name.group(1)  # 只输出歌曲名和歌手名的部分
+            kugou_vip_data = httpx.get(f"{KUGOU_TEMP_API.replace('{}', kugou_title)}", headers=COMMON_HEADER).json()
+            # logger.info(kugou_vip_data)
+            kugou_url = kugou_vip_data.get('music_url')
+            kugou_cover = kugou_vip_data.get('cover')
+            kugou_name = kugou_vip_data.get('title')
+            kugou_singer = kugou_vip_data.get('singer')
+            await kg.send(Message(
+                [MessageSegment.image(kugou_cover),
+                 MessageSegment.text(f'{GLOBAL_NICKNAME}\n来源：【酷狗音乐】\n歌曲：{kugou_name}-{kugou_singer}')]))
+            # 下载音频文件后会返回一个下载路径
+            kugou_music_path = await download_audio(kugou_url)
+            # 发送语音
+            await kg.send(Message(MessageSegment.record(kugou_music_path)))
+            # 发送群文件
+            await upload_both(bot, event, kugou_music_path, f'{kugou_name}-{kugou_singer}.{kugou_music_path.split(".")[-1]}')
+            if os.path.exists(kugou_music_path):
+                os.unlink(kugou_music_path)
+        else:
+            await kg.send(Message(f"{GLOBAL_NICKNAME}\n来源：【酷狗音乐】\n不支持当前外链，请重新分享再试"))
+    else:
+        await kg.send(Message(f"{GLOBAL_NICKNAME}\n来源：【酷狗音乐】\n获取链接失败"))
+
+
 @weibo.handle()
 @resolve_handler
 async def wb(bot: Bot, event: Event):
@@ -698,6 +761,7 @@ async def wb(bot: Bot, event: Event):
         Message(
             f"{GLOBAL_NICKNAME}识别：微博，{re.sub(r'<[^>]+>', '', text)}\n{status_title}\n{source}\t{region_name if region_name else ''}"))
     if pics:
+        pics = map(lambda x: x['url'], pics)
         download_img_funcs = [asyncio.create_task(download_img(item, '', headers={
                                                                                      "Referer": "http://blog.sina.com.cn/"
                                                                                  } | COMMON_HEADER)) for item in pics]
