@@ -719,6 +719,20 @@ async def kugou(bot: Bot, event: Event):
 async def wb(bot: Bot, event: Event):
     message = str(event.message)
     weibo_id = None
+    reg = r'(jumpUrl|qqdocurl)": ?"(.*?)"'
+
+    # 处理卡片问题
+    if 'com.tencent.structmsg' or 'com.tencent.miniapp' in message:
+        match = re.search(reg, message)
+        print(match)
+        if match:
+            get_url = match.group(2)
+            print(get_url)
+            if get_url:
+                message = json.loads('"' + get_url + '"')
+    else:
+        message = message
+    logger.info(message)
     # 判断是否包含 "m.weibo.cn"
     if "m.weibo.cn" in message:
         # https://m.weibo.cn/detail/4976424138313924
