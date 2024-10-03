@@ -292,7 +292,6 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # 截断下载时间比较长的视频
     online = await v.get_online()
     online_str = f'🏄‍♂️ 总共 {online["total"]} 人在观看，{online["count"]} 人在网页端观看'
-    logger.info(f'=================={VIDEO_DURATION_MAXIMUM}')
     if video_duration <= VIDEO_DURATION_MAXIMUM:
         await bili23.send(Message(MessageSegment.image(video_cover)) + Message(
             f"\n{GLOBAL_NICKNAME}识别：B站，{video_title}\n{extra_bili_info(video_info)}\n📝 简介：{video_desc}\n{online_str}"))
@@ -732,7 +731,7 @@ async def wb(bot: Bot, event: Event):
                 message = json.loads('"' + get_url + '"')
     else:
         message = message
-    logger.info(message)
+    # logger.info(message)
     # 判断是否包含 "m.weibo.cn"
     if "m.weibo.cn" in message:
         # https://m.weibo.cn/detail/4976424138313924
