@@ -279,7 +279,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
             # 解析查询字符串中的参数
             query_params = parse_qs(parsed_url.query)
             # 获取指定参数的值，如果参数不存在，则返回None
-            page_num = int(query_params.get('p', [0])[0]) - 1
+            page_num = int(query_params.get('p', [1])[0]) - 1
         else:
             page_num = 0
         if 'duration' in video_info['pages'][page_num]:
