@@ -901,7 +901,9 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
         # 如果是Lagrange，转换成CQ码发送
 
         if is_lagrange:
+            # 检测文件大小
             file_size_in_mb = get_file_size_mb(data_path)
+            # 如果视频大于 100 MB 自动转换为群文件
             logger.info(f"当前视频文件为{file_size_in_mb}MB")
             if file_size_in_mb > VIDEO_MAX_MB:
                 await bot.send(event, Message(
