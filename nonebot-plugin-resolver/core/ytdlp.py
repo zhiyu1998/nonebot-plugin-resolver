@@ -9,7 +9,7 @@ def get_video_title(url: str, is_oversea: bool, my_proxy=None) -> str:
         command += ["--proxy", my_proxy]
 
     # 执行命令并捕获输出
-    result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8')
+    result = subprocess.run(command, capture_output=True, text=True) #, encoding='utf-8'
 
     # 检查是否有错误
     if result.returncode != 0:
