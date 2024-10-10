@@ -899,25 +899,38 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
             data_path = await download_video(data_path)
 
         # 如果是Lagrange，转换成CQ码发送
+
         if is_lagrange:
-            cq_code = f'[CQ:video,file={data_path}]'
-            await bot.send(event, Message(cq_code))
+            file_size_in_mb = get_file_size_mb(data_path)
+            logger.info(f"当前视频文件为{file_size_in_mb}MB")
+            if file_size_in_mb > VIDEO_MAX_MB:
+                await bot.send(event, Message(
+                    f"当前解析文件 {file_size_in_mb} MB 大于 {VIDEO_MAX_MB} MB，尝试改用文件方式发送，请稍等..."))
+                timestamp = str(int(time.time()))
+                # 构建新的文件名
+                new_file_name = timestamp + ".mp4"
+                await upload_both(bot, event, data_path, new_file_name)
+            else:
+                cq_code = f'[CQ:video,file={data_path}]'
+                await bot.send(event, Message(cq_code))
+                return
         else:
             # 检测文件大小
             file_size_in_mb = get_file_size_mb(data_path)
             # 如果视频大于 100 MB 自动转换为群文件
             if file_size_in_mb > VIDEO_MAX_MB:
                 await bot.send(event, Message(
-                    f"当前解析文件 {file_size_in_mb} MB 大于 {VIDEO_MAX_MB} MB，改用文件方式发送，请稍等..."))
+                    f"当前解析文件 {file_size_in_mb} MB 大于 {VIDEO_MAX_MB} MB，尝试改用文件方式发送，请稍等..."))
                 await upload_both(bot, event, data_path, data_path.split('/')[-1])
                 return
             # 根据事件类型发送不同的消息
             await send_both(bot, event, MessageSegment.video(f'file://{data_path}'))
     except Exception as e:
-        logger.error(f"下载出现错误，具体为\n{e}")
+        logger.error(f"解析发送出现错误，具体为\n{e}")
     finally:
         # 删除临时文件
         if os.path.exists(data_path):
             os.unlink(data_path)
         if os.path.exists(data_path + '.jpg'):
             os.unlink(data_path + '.jpg')
+
