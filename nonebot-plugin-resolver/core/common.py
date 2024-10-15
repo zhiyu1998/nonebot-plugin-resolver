@@ -193,7 +193,11 @@ def load_or_initialize_list(file_path: str) -> List[Any]:
 
 
 def read_pickle_sync(filename):
-    with open(Path(filename).resolve(), 'rb') as f:
+    file_path = Path(filename).resolve()
+    if not file_path.exists():
+        return { }
+
+    with open(file_path, 'rb') as f:
         return pickle.load(f)
 
 
