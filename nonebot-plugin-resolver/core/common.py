@@ -5,6 +5,7 @@ import re
 import time
 from typing import List, Dict, Any
 from urllib.parse import urlparse
+from pathlib import Path
 
 import aiofiles
 import aiohttp
@@ -192,13 +193,13 @@ def load_or_initialize_list(file_path: str) -> List[Any]:
 
 
 def read_pickle_sync(filename):
-    with open(filename, 'rb') as f:
+    with open(Path(filename).resolve(), 'rb') as f:
         return pickle.load(f)
 
 
 # 同步的pickle写入函数
 def save_pickle_sync(data, filename):
-    with open(filename, 'wb') as f:
+    with open(Path(filename).resolve(), 'wb') as f:
         pickle.dump(data, f)
 
 
