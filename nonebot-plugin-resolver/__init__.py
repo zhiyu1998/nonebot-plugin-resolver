@@ -2,7 +2,7 @@ import json
 import os.path
 from functools import wraps
 from typing import cast, Iterable, Union
-from urllib.parse import parse_qs
+from urllib.parse import urlparse, parse_qs
 
 from bilibili_api import video, Credential, live, article
 from bilibili_api.favorite_list import get_video_favorite_list_content
@@ -182,8 +182,8 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # 消息
     url: str = str(event.message).strip()
     # 正则匹配
-    url_reg = "(http:|https:)\/\/(space|www|live).bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
-    b_short_rex = "(http:|https:)\/\/b23.tv\/[A-Za-z\d._?%&+\-=\/#]*"
+    url_reg = r"(http:|https:)\/\/(space|www|live).bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
+    b_short_rex = r"(http:|https:)\/\/b23.tv\/[A-Za-z\d._?%&+\-=\/#]*"
     # BV处理
     if re.match(r'^BV[1-9a-zA-Z]{10}$', url):
         url = 'https://www.bilibili.com/video/' + url
@@ -552,7 +552,14 @@ async def xiaohongshu(bot: Bot, event: Event):
         xhs_id = re.search(r'source=note&noteId=(\w+)', msg_url)
     xhs_id = xhs_id[1]
 
-    html = httpx.get(f'{XHS_REQ_LINK}{xhs_id}', headers=headers).text
+    # 解析 URL 参数
+    parsed_url = urlparse(msg_url)
+    params = parse_qs(parsed_url.query)
+    # 提取 xsec_source 和 xsec_token
+    xsec_source = params.get('xsec_source', [None])[0] or "pc_feed"
+    xsec_token = params.get('xsec_token', [None])[0]
+
+    html = httpx.get(f'{XHS_REQ_LINK}{xhs_id}?xsec_source={xsec_source}&xsec_token={xsec_token}', headers=headers).text
     # response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
     try:
         response_json = re.findall('window.__INITIAL_STATE__=(.*?)</script>', html)[0]
@@ -654,7 +661,6 @@ async def netease(bot: Bot, event: Event):
         os.unlink(ncm_music_path)
 
 
-
 @kg.handle()
 @resolve_handler
 async def kugou(bot: Bot, event: Event):
@@ -704,7 +710,8 @@ async def kugou(bot: Bot, event: Event):
             # 发送语音
             await kg.send(Message(MessageSegment.record(kugou_music_path)))
             # 发送群文件
-            await upload_both(bot, event, kugou_music_path, f'{kugou_name}-{kugou_singer}.{kugou_music_path.split(".")[-1]}')
+            await upload_both(bot, event, kugou_music_path,
+                              f'{kugou_name}-{kugou_singer}.{kugou_music_path.split(".")[-1]}')
             if os.path.exists(kugou_music_path):
                 os.unlink(kugou_music_path)
         else:
@@ -935,4 +942,3 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
             os.unlink(data_path)
         if os.path.exists(data_path + '.jpg'):
             os.unlink(data_path + '.jpg')
-
