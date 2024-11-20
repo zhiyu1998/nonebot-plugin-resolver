@@ -49,7 +49,7 @@ IS_OVERSEA: bool = bool(getattr(global_config, "is_oversea", False))
 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
 VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
 # 全局解析内容控制
-GLOBAL_RESOLVE_CONTROLLER: list = str(getattr(global_config, "global_resolve_controller", "[]")).split(',')
+GLOBAL_RESOLVE_CONTROLLER: list = split_and_strip(str(getattr(global_config, "global_resolve_controller", "[]")), ",")
 # 哔哩哔哩的 SESSDATA
 BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 # 构建哔哩哔哩的Credential

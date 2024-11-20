@@ -186,3 +186,10 @@ def load_sub_user():
     if not data_file.exists():
         data_file.write_text(json.dumps([]))
     return json.loads(data_file.read_text())
+
+
+def split_and_strip(text, sep=None) -> List[str]:
+    # 先去除两边的空格，然后按指定分隔符分割
+    split_text = text.strip().split(sep)
+    # 去除每个子字符串两边的空格
+    return [sub_text.strip() for sub_text in split_text]
