@@ -48,6 +48,11 @@ resolver_proxy: str = getattr(global_config, "resolver_proxy", "http://127.0.0.1
 IS_OVERSEA: bool = bool(getattr(global_config, "is_oversea", False))
 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
 VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
+# 全局解析内容控制
+GLOBAL_RESOLVE_CONTROLLER: list = str(getattr(global_config, "global_resolve_controller", "[bilibili,dy,tiktok,ac,"
+                                                                                          "twitter,xiaohongshu,"
+                                                                                          "youtube.netease,kugou,wb]")) \
+    [1:-1].split(',')
 # 哔哩哔哩的 SESSDATA
 BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 # 构建哔哩哔哩的Credential
@@ -168,8 +173,31 @@ async def check_disable(bot: Bot, event: Event):
         "[nonebot-plugin-resolver 关闭名单如下：]" + "\n\n" + memory_disable_list + '\n\n' + persistence_disable_list + "\n\n" + "🌟 温馨提示：如果想关闭解析需要艾特我然后输入: 关闭解析"))
 
 
+def resolve_controller(func):
+    """
+        将装饰器应用于函数，通过装饰器自动判断是否允许执行函数
+    :param func:
+    :return:
+    """
+
+    logger.debug(f"[nonebot-plugin-resolver][解析全局控制] 加载 {func.__name__} {'允许' if func.__name__ in GLOBAL_RESOLVE_CONTROLLER else '禁止' }")
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        # 判断函数名是否在允许列表中
+        if func.__name__ in GLOBAL_RESOLVE_CONTROLLER:
+            logger.info(f"[nonebot-plugin-resolver][解析全局控制] {func.__name__}...")
+            return await func(*args, **kwargs)
+        else:
+            logger.warning(f"[nonebot-plugin-resolver][解析全局控制] {func.__name__} 被禁止执行")
+            return None
+
+    return wrapper
+
+
 @bili23.handle()
 @resolve_handler
+@resolve_controller
 async def bilibili(bot: Bot, event: Event) -> None:
     """
         哔哩哔哩解析
@@ -327,6 +355,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
 
 @douyin.handle()
 @resolve_handler
+@resolve_controller
 async def dy(bot: Bot, event: Event) -> None:
     """
         抖音解析
@@ -401,6 +430,7 @@ async def dy(bot: Bot, event: Event) -> None:
 
 @tik.handle()
 @resolve_handler
+@resolve_controller
 async def tiktok(event: Event) -> None:
     """
         tiktok解析
@@ -440,6 +470,7 @@ async def tiktok(event: Event) -> None:
 
 @acfun.handle()
 @resolve_handler
+@resolve_controller
 async def ac(event: Event) -> None:
     """
         acfun解析
@@ -465,6 +496,7 @@ async def ac(event: Event) -> None:
 
 @twit.handle()
 @resolve_handler
+@resolve_controller
 async def twitter(bot: Bot, event: Event):
     """
         推特解析
@@ -520,6 +552,7 @@ async def twitter(bot: Bot, event: Event):
 
 @xhs.handle()
 @resolve_handler
+@resolve_controller
 async def xiaohongshu(bot: Bot, event: Event):
     """
         小红书解析
@@ -607,6 +640,7 @@ async def xiaohongshu(bot: Bot, event: Event):
 
 @y2b.handle()
 @resolve_handler
+@resolve_controller
 async def youtube(bot: Bot, event: Event):
     msg_url = re.search(
         r"(?:https?:\/\/)?(www\.)?youtube\.com\/[A-Za-z\d._?%&+\-=\/#]*|(?:https?:\/\/)?youtu\.be\/[A-Za-z\d._?%&+\-=\/#]*",
@@ -626,6 +660,7 @@ async def youtube(bot: Bot, event: Event):
 
 @ncm.handle()
 @resolve_handler
+@resolve_controller
 async def netease(bot: Bot, event: Event):
     message = str(event.message)
     # 识别短链接
@@ -661,6 +696,7 @@ async def netease(bot: Bot, event: Event):
 
 @kg.handle()
 @resolve_handler
+@resolve_controller
 async def kugou(bot: Bot, event: Event):
     message = str(event.message)
     # logger.info(message)
@@ -720,6 +756,7 @@ async def kugou(bot: Bot, event: Event):
 
 @weibo.handle()
 @resolve_handler
+@resolve_controller
 async def wb(bot: Bot, event: Event):
     message = str(event.message)
     weibo_id = None

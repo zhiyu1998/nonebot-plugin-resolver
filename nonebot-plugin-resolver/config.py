@@ -10,3 +10,4 @@ class Config(BaseModel, extra=Extra.ignore):
     r_global_nickname: Optional[str] = ''
     resolver_proxy: Optional[str] = 'http://127.0.0.1:7890'
     video_duration_maximum: Optional[int] = 480
+    global_resolve_controller: Optional[str] = "[bilibili,dy,tiktok,ac,twitter,xiaohongshu,youtube,netease,kugou,wb]"
