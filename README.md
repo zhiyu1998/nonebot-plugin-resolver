@@ -51,6 +51,10 @@ sudo apt-get install ffmpeg
 # 其他linux参考（群友推荐）：https://gitee.com/baihu433/ffmpeg
 # Windows 参考：https://www.jianshu.com/p/5015a477de3c
 ```
+> [!IMPORTANT]
+> 推荐两个ffmpeg全编译版本：
+> - https://github.com/yt-dlp/FFmpeg-Builds
+> - https://github.com/BtbN/FFmpeg-Builds
 
 5. 【可选】安装`TikTok`&`YouTube`解析必要依赖 不建议直接使用`apt`不是最新版
 
