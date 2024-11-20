@@ -54,32 +54,32 @@ BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 credential = Credential(sessdata=BILI_SESSDATA)
 
 bili23 = on_regex(
-    r"(.*)(bilibili.com|b23.tv|BV[0-9a-zA-Z]{10})", priority=1
+    r"(bilibili.com|b23.tv|BV[0-9a-zA-Z]{10})", priority=1
 )
 douyin = on_regex(
-    r"(.*)(v.douyin.com)", priority=1
+    r"(v.douyin.com)", priority=1
 )
 tik = on_regex(
-    r"(.*)(www.tiktok.com)|(vt.tiktok.com)|(vm.tiktok.com)", priority=1
+    r"(www.tiktok.com|vt.tiktok.com|vm.tiktok.com)", priority=1
 )
-acfun = on_regex(r"(.*)(acfun.cn)")
+acfun = on_regex(r"(acfun.cn)")
 twit = on_regex(
-    r"(.*)(x.com)", priority=1
+    r"(x.com)", priority=1
 )
 xhs = on_regex(
-    r"(.*)(xhslink.com|xiaohongshu.com)", priority=1
+    r"(xhslink.com|xiaohongshu.com)", priority=1
 )
 y2b = on_regex(
-    r"(.*)(youtube.com|youtu.be)", priority=1
+    r"(youtube.com|youtu.be)", priority=1
 )
 ncm = on_regex(
-    r"(.*)(music.163.com|163cn.tv)"
+    r"(music.163.com|163cn.tv)"
 )
 weibo = on_regex(
-    r"(.*)(weibo.com|m.weibo.cn)"
+    r"(weibo.com|m.weibo.cn)"
 )
 kg = on_regex(
-    r"(.*)(kugou.com)"
+    r"(kugou.com)"
 )
 
 enable_resolve = on_command('开启解析', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
