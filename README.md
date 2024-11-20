@@ -65,7 +65,6 @@ pip install yt-dlp
 XHS_CK='' #xhs cookie
 DOUYIN_CK='' # douyin's cookie, 格式：odin_tt=xxx;passport_fe_beating_status=xxx;sid_guard=xxx;uid_tt=xxx;uid_tt_ss=xxx;sid_tt=xxx;sessionid=xxx;sessionid_ss=xxx;sid_ucp_v1=xxx;ssid_ucp_v1=xxx;passport_assist_user=xxx;ttwid=xxx;
 IS_OVERSEA=False # 是否是海外服务器部署
-IS_LAGRANGE=False # 是否是拉格朗日（不建议使用，除非你真的喜欢它。https://github.com/KonataDev/Lagrange.Core）
 RESOLVER_PROXY = "http://127.0.0.1:7890" # 代理
 R_GLOBAL_NICKNAME="" # 解析前缀名
 BILI_SESSDATA='' # bilibili sessdata 填写后可附加: 总结等功能
