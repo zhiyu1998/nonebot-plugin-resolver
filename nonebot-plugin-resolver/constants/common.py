@@ -16,7 +16,8 @@ COMMON_HEADER = {
 """
 VIDEO_MAX_MB = 100
 
-"""
-解析关闭名单
-"""
-RESOLVE_SHUTDOWN_LIST_PICKLE_PATH = "./data/resolver/resolver_shutdown_list.pkl"
+# 插件名字
+PLUGIN_NAME = "nonebot-plugin-resolver"
+
+# 解析列表文件名
+RESOLVE_SHUTDOWN_LIST_NAME = "resolver_shutdown_list"

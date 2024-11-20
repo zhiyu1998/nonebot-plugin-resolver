@@ -1,14 +1,14 @@
-import json
+import asyncio
 import os.path
 from functools import wraps
 from typing import cast, Iterable, Union
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs
 
 from bilibili_api import video, Credential, live, article
 from bilibili_api.favorite_list import get_video_favorite_list_content
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter
-from nonebot import on_regex, get_driver, logger, on_command
+from nonebot import on_regex, get_driver, on_command
 from nonebot.adapters.onebot.v11 import Message, Event, Bot, MessageSegment, GROUP_ADMIN, GROUP_OWNER
 from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageEvent
 from nonebot.matcher import current_bot
@@ -19,14 +19,14 @@ from nonebot.rule import to_me
 from .config import Config
 # noinspection PyUnresolvedReferences
 from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
-    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH, \
+    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, \
     WEIBO_SINGLE_INFO, KUGOU_TEMP_API
 from .core.acfun import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .core.bili23 import download_b_file, merge_file_to_mp4, extra_bili_info
 from .core.common import *
 from .core.tiktok import generate_x_bogus_url
-from .core.ytdlp import get_video_title, download_ytb_video
 from .core.weibo import mid2id
+from .core.ytdlp import get_video_title, download_ytb_video
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -89,7 +89,7 @@ disable_resolve = on_command('关闭解析', rule=to_me(), permission=GROUP_ADMI
 check_resolve = on_command('查看关闭解析', permission=SUPERUSER)
 
 # 内存中关闭解析的名单，第一次先进行初始化
-resolve_shutdown_list_in_memory: list = load_or_initialize_list(RESOLVE_SHUTDOWN_LIST_PICKLE_PATH)
+resolve_shutdown_list_in_memory: list = load_or_initialize_list()
 
 
 def resolve_handler(func):
@@ -125,7 +125,7 @@ async def enable(bot: Bot, event: Event):
     send_id = get_id_both(event)
     if send_id in resolve_shutdown_list_in_memory:
         resolve_shutdown_list_in_memory.remove(send_id)
-        await save_pickle_async(resolve_shutdown_list_in_memory, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH)
+        save_sub_user(resolve_shutdown_list_in_memory)
         logger.info(resolve_shutdown_list_in_memory)
         await enable_resolve.finish('解析已开启')
     else:
@@ -143,7 +143,7 @@ async def disable(bot: Bot, event: Event):
     send_id = get_id_both(event)
     if send_id not in resolve_shutdown_list_in_memory:
         resolve_shutdown_list_in_memory.append(send_id)
-        await save_pickle_async(resolve_shutdown_list_in_memory, RESOLVE_SHUTDOWN_LIST_PICKLE_PATH)
+        save_sub_user(resolve_shutdown_list_in_memory)
         logger.info(resolve_shutdown_list_in_memory)
         await disable_resolve.finish('解析已关闭')
     else:
@@ -162,7 +162,7 @@ async def check_disable(bot: Bot, event: Event):
                            resolve_shutdown_list_in_memory]
     memory_disable_list = "1. 在【内存】中的名单有：\n" + '\n'.join(memory_disable_list)
     persistence_disable_list = [str(item) + "--" + (await bot.get_group_info(group_id=item))['group_name'] for item in
-                                list(read_pickle_sync(RESOLVE_SHUTDOWN_LIST_PICKLE_PATH))]
+                                list(load_sub_user())]
     persistence_disable_list = "2. 在【持久层】中的名单有：\n" + '\n'.join(persistence_disable_list)
 
     await check_resolve.send(Message("已经发送到私信了~"))

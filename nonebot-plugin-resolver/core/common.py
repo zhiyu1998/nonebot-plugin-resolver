@@ -1,17 +1,20 @@
-import asyncio
+import json
 import os
-import pickle
 import re
 import time
 from typing import List, Dict, Any
 from urllib.parse import urlparse
-from pathlib import Path
+from nonebot import require, logger
+
+require("nonebot_plugin_localstore")
+
+import nonebot_plugin_localstore as store
 
 import aiofiles
 import aiohttp
 import httpx
 
-from ..constants import COMMON_HEADER
+from ..constants import COMMON_HEADER, PLUGIN_NAME, RESOLVE_SHUTDOWN_LIST_NAME
 
 
 async def download_video(url, proxy: str = None, ext_headers=None) -> str:
@@ -113,7 +116,7 @@ def delete_boring_characters(sentence):
     :param sentence:
     :return:
     """
-    return re.sub('[0-9’!"∀〃#$%&\'()*+,-./:;<=>?@，。?★、…【】《》？“”‘’！[\\]^_`{|}~～\s]+', "", sentence)
+    return re.sub(r'[0-9’!"∀〃#$%&\'()*+,-./:;<=>?@，。?★、…【】《》？“”‘’！[\\]^_`{|}~～\s]+', "", sentence)
 
 
 def remove_files(file_paths: List[str]) -> Dict[str, str]:
@@ -156,59 +159,30 @@ def get_file_size_mb(file_path):
     return file_size_mb
 
 
-def ensure_directory_exists(file_path: str):
-    # 获取文件路径的目录部分
-    directory = os.path.dirname(file_path)
+def load_or_initialize_list() -> List[Any]:
+    data_file = store.get_data_file(PLUGIN_NAME, RESOLVE_SHUTDOWN_LIST_NAME)
+    # 判断是否存在
+    if not data_file.exists():
+        data_file.write_text(json.dumps([]))
+    return list(json.loads(data_file.read_text()))
 
-    # 如果目录不存在，递归创建目录
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
-
-def load_or_initialize_list(file_path: str) -> List[Any]:
+def save_sub_user(sub_group):
     """
-    从文件中加载数据，或者如果文件不存在或内容为空，初始化为一个空的 list
-
-    Parameters:
-    file_path (str): pickle 文件的路径
-
-    Returns:
-    List: 加载的 list，如果文件不存在或内容为空，将返回一个空的 list
+    使用pickle将对象保存到文件
+    :return: None
     """
-    # 确保目录存在
-    ensure_directory_exists(file_path)
-
-    try:
-        # 尝试从 pickle 文件中加载数据
-        my_list = read_pickle_sync(file_path)
-
-        # 检查加载的数据是否为空
-        if not my_list:
-            my_list = []
-    except (FileNotFoundError, EOFError):
-        # 如果文件不存在或内容为空，初始化为一个空的 list
-        my_list = []
-
-    return my_list
+    data_file = store.get_data_file(PLUGIN_NAME, RESOLVE_SHUTDOWN_LIST_NAME)
+    data_file.write_text(json.dumps(sub_group))
 
 
-def read_pickle_sync(filename):
-    file_path = Path(filename).resolve()
-    if not file_path.exists():
-        return { }
-
-    with open(file_path, 'rb') as f:
-        return pickle.load(f)
-
-
-# 同步的pickle写入函数
-def save_pickle_sync(data, filename):
-    with open(Path(filename).resolve(), 'wb') as f:
-        pickle.dump(data, f)
-
-
-# 异步函数
-async def save_pickle_async(data, filename):
-    loop = asyncio.get_event_loop()
-    # 使用 run_in_executor 将同步操作放入线程池执行
-    await loop.run_in_executor(None, save_pickle_sync, data, filename)
+def load_sub_user():
+    """
+    从文件中加载对象
+    :return: 订阅用户列表
+    """
+    data_file = store.get_data_file(PLUGIN_NAME, RESOLVE_SHUTDOWN_LIST_NAME)
+    # 判断是否存在
+    if not data_file.exists():
+        data_file.write_text(json.dumps([]))
+    return json.loads(data_file.read_text())
