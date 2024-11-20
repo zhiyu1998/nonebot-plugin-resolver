@@ -49,10 +49,7 @@ IS_OVERSEA: bool = bool(getattr(global_config, "is_oversea", False))
 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
 VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
 # 全局解析内容控制
-GLOBAL_RESOLVE_CONTROLLER: list = str(getattr(global_config, "global_resolve_controller", "[bilibili,dy,tiktok,ac,"
-                                                                                          "twitter,xiaohongshu,"
-                                                                                          "youtube.netease,kugou,wb]")) \
-    [1:-1].split(',')
+GLOBAL_RESOLVE_CONTROLLER: list = str(getattr(global_config, "global_resolve_controller", "[]")).split(',')
 # 哔哩哔哩的 SESSDATA
 BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 # 构建哔哩哔哩的Credential
@@ -180,12 +177,12 @@ def resolve_controller(func):
     :return:
     """
 
-    logger.debug(f"[nonebot-plugin-resolver][解析全局控制] 加载 {func.__name__} {'允许' if func.__name__ in GLOBAL_RESOLVE_CONTROLLER else '禁止' }")
+    logger.debug(f"[nonebot-plugin-resolver][解析全局控制] 加载 {func.__name__} {'禁止' if func.__name__ in GLOBAL_RESOLVE_CONTROLLER else '允许' }")
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
         # 判断函数名是否在允许列表中
-        if func.__name__ in GLOBAL_RESOLVE_CONTROLLER:
+        if func.__name__ not in GLOBAL_RESOLVE_CONTROLLER:
             logger.info(f"[nonebot-plugin-resolver][解析全局控制] {func.__name__}...")
             return await func(*args, **kwargs)
         else:
