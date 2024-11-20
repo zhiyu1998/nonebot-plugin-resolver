@@ -35,7 +35,7 @@ __plugin_meta__ = PluginMetadata(
     type="application",
     homepage="https://github.com/zhiyu1998/nonebot-plugin-resolver",
     config=Config,
-    supported_adapters={ "~onebot.v11", "~qq" }
+    supported_adapters={ "~onebot.v11" }
 )
 
 # 配置加载
@@ -46,8 +46,6 @@ GLOBAL_NICKNAME: str = str(getattr(global_config, "r_global_nickname", ""))
 resolver_proxy: str = getattr(global_config, "resolver_proxy", "http://127.0.0.1:7890")
 # 是否是海外服务器
 IS_OVERSEA: bool = bool(getattr(global_config, "is_oversea", False))
-# 是否是拉格朗日引擎
-IS_LAGRANGE: bool = bool(getattr(global_config, "is_lagrange", False))
 # 哔哩哔哩限制的最大视频时长（默认8分钟），单位：秒
 VIDEO_DURATION_MAXIMUM: int = int(getattr(global_config, "video_duration_maximum", 480))
 # 哔哩哔哩的 SESSDATA
@@ -317,7 +315,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
         logger.info(remove_res)
     # 发送出去
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
-    await auto_video_send(event, f"{path}-res.mp4", IS_LAGRANGE)
+    await auto_video_send(event, f"{path}-res.mp4")
     # 这里是总结内容，如果写了cookie就可以
     if BILI_SESSDATA != '':
         ai_conclusion = await v.get_ai_conclusion(await v.get_cid(0))
@@ -382,7 +380,7 @@ async def dy(bot: Bot, event: Event) -> None:
                 # 发送视频
                 # logger.info(player_addr)
                 # await douyin.send(Message(MessageSegment.video(player_addr)))
-                await auto_video_send(event, player_real_addr, IS_LAGRANGE)
+                await auto_video_send(event, player_real_addr)
             elif url_type == 'image':
                 # 无水印图片列表/No watermark image list
                 no_watermark_image_list = []
@@ -437,7 +435,7 @@ async def tiktok(event: Event) -> None:
 
     target_tik_video_path = await download_ytb_video(url, IS_OVERSEA, os.getcwd(), resolver_proxy, 'tiktok')
 
-    await auto_video_send(event, target_tik_video_path, IS_LAGRANGE)
+    await auto_video_send(event, target_tik_video_path)
 
 
 @acfun.handle()
@@ -462,7 +460,7 @@ async def ac(event: Event) -> None:
     await asyncio.gather(*[download_m3u8_videos(url, i) for i, url in enumerate(m3u8_full_urls)])
     merge_ac_file_to_mp4(ts_names, output_file_name)
     # await acfun.send(Message(MessageSegment.video(f"{os.getcwd()}/{output_file_name}")))
-    await auto_video_send(event, f"{os.getcwd()}/{output_file_name}", IS_LAGRANGE)
+    await auto_video_send(event, f"{os.getcwd()}/{output_file_name}")
 
 
 @twit.handle()
@@ -595,7 +593,7 @@ async def xiaohongshu(bot: Bot, event: Event):
         # video_url = f"http://sns-video-bd.xhscdn.com/{note_data['video']['consumer']['originVideoKey']}"
         path = await download_video(video_url)
         # await xhs.send(Message(MessageSegment.video(path)))
-        await auto_video_send(event, path, IS_LAGRANGE)
+        await auto_video_send(event, path)
         return
     # 发送图片
     links = make_node_segment(bot.self_id,
@@ -623,7 +621,7 @@ async def youtube(bot: Bot, event: Event):
 
     target_ytb_video_path = await download_ytb_video(msg_url, IS_OVERSEA, os.getcwd(), proxy)
 
-    await auto_video_send(event, target_ytb_video_path, IS_LAGRANGE)
+    await auto_video_send(event, target_ytb_video_path)
 
 
 @ncm.handle()
@@ -801,7 +799,7 @@ async def wb(bot: Bot, event: Event):
                 "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
                 "referer": "https://weibo.com/"
             })
-            await auto_video_send(event, path, IS_LAGRANGE)
+            await auto_video_send(event, path)
 
 
 def auto_determine_send_type(user_id: int, task: str):
@@ -890,12 +888,11 @@ def get_id_both(event: Event):
         return event.user_id
 
 
-async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = False):
+async def auto_video_send(event: Event, data_path: str):
     """
-    拉格朗日自动转换成CQ码发送
+    自动判断视频类型并进行发送，支持群发和私发
     :param event:
     :param data_path:
-    :param is_lagrange:
     :return:
     """
     try:
@@ -905,35 +902,16 @@ async def auto_video_send(event: Event, data_path: str, is_lagrange: bool = Fals
         if data_path is not None and data_path.startswith("http"):
             data_path = await download_video(data_path)
 
-        # 如果是Lagrange，转换成CQ码发送
-
-        if is_lagrange:
-            # 检测文件大小
-            file_size_in_mb = get_file_size_mb(data_path)
-            # 如果视频大于 100 MB 自动转换为群文件
-            logger.info(f"当前视频文件为{file_size_in_mb}MB")
-            if file_size_in_mb > VIDEO_MAX_MB:
-                await bot.send(event, Message(
-                    f"当前解析文件 {file_size_in_mb} MB 大于 {VIDEO_MAX_MB} MB，尝试改用文件方式发送，请稍等..."))
-                timestamp = str(int(time.time()))
-                # 构建新的文件名
-                new_file_name = timestamp + ".mp4"
-                await upload_both(bot, event, data_path, new_file_name)
-            else:
-                cq_code = f'[CQ:video,file={data_path}]'
-                await bot.send(event, Message(cq_code))
-                return
-        else:
-            # 检测文件大小
-            file_size_in_mb = get_file_size_mb(data_path)
-            # 如果视频大于 100 MB 自动转换为群文件
-            if file_size_in_mb > VIDEO_MAX_MB:
-                await bot.send(event, Message(
-                    f"当前解析文件 {file_size_in_mb} MB 大于 {VIDEO_MAX_MB} MB，尝试改用文件方式发送，请稍等..."))
-                await upload_both(bot, event, data_path, data_path.split('/')[-1])
-                return
-            # 根据事件类型发送不同的消息
-            await send_both(bot, event, MessageSegment.video(f'file://{data_path}'))
+        # 检测文件大小
+        file_size_in_mb = get_file_size_mb(data_path)
+        # 如果视频大于 100 MB 自动转换为群文件
+        if file_size_in_mb > VIDEO_MAX_MB:
+            await bot.send(event, Message(
+                f"当前解析文件 {file_size_in_mb} MB 大于 {VIDEO_MAX_MB} MB，尝试改用文件方式发送，请稍等..."))
+            await upload_both(bot, event, data_path, data_path.split('/')[-1])
+            return
+        # 根据事件类型发送不同的消息
+        await send_both(bot, event, MessageSegment.video(f'file://{data_path}'))
     except Exception as e:
         logger.error(f"解析发送出现错误，具体为\n{e}")
     finally:
