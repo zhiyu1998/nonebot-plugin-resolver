@@ -91,9 +91,6 @@ GLOBAL_RESOLVE_CONTROLLER="" # 全局禁止的解析，示例 GLOBAL_RESOLVE_CON
 
 https://github.com/user-attachments/assets/7ead6d62-a36c-4e8d-bb5d-6666749dfb26
 
-## 🤺 交流群
-
-<img src="https://s2.loli.net/2024/08/12/8zhnvBCj5SgxukK.jpg" width="30%" height="30%">
 
 ## 🎉 使用 & 效果图
 <img src="https://s2.loli.net/2024/08/12/l8ISa1Gv76OHuML.webp" width="50%" height="50%">
