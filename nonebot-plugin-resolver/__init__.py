@@ -56,7 +56,7 @@ BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 credential = Credential(sessdata=BILI_SESSDATA)
 
 bili23 = on_regex(
-    r"(bilibili.com|b23.tv|BV[0-9a-zA-Z]{10})", priority=1
+    r"(bilibili.com|b23.tv|^BV[0-9a-zA-Z]{10}$)", priority=1
 )
 douyin = on_regex(
     r"(v.douyin.com)", priority=1
