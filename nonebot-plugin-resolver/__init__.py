@@ -334,7 +334,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
         await asyncio.gather(
             download_b_file(video_url, f"{path}-video.m4s", logger.info),
             download_b_file(audio_url, f"{path}-audio.m4s", logger.info))
-        asyncio.run(merge_file_to_mp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4"))
+        await merge_file_to_mp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4")
     finally:
         remove_res = remove_files([f"{video_id}-video.m4s", f"{video_id}-audio.m4s"])
         logger.info(remove_res)
