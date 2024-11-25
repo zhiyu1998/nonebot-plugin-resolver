@@ -1,7 +1,7 @@
 import httpx
 import subprocess
 import aiofiles
-
+import asyncio
 from nonebot import logger
 from ..constants import BILIBILI_HEADER
 
@@ -24,23 +24,6 @@ async def download_b_file(url, full_file_name, progress_callback):
                     current_len += len(chunk)
                     await f.write(chunk)
                     progress_callback(f'下载进度：{round(current_len / total_len, 3)}')
-
-
-def _merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_name: str):
-    """
-        合并视频文件和音频文件
-    :param v_full_file_name:
-    :param a_full_file_name:
-    :param output_file_name:
-    :return:
-    """
-    logger.info(f'正在合并：{[output_file_name]}')
-    # 调用ffmpeg
-    subprocess.call(f'ffmpeg -y -i "{v_full_file_name}" -i "{a_full_file_name}" -c copy "{output_file_name}"',
-                    shell=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    )
 
 async def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_name: str):
     """
