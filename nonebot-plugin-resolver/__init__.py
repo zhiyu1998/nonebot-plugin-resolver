@@ -653,7 +653,7 @@ async def youtube(bot: Bot, event: Event):
     await y2b.send(Message(f"{GLOBAL_NICKNAME}识别：油管，{title}\n"))
 
     target_ytb_video_path = await download_ytb_video(msg_url, IS_OVERSEA, os.getcwd(), proxy)
-ytb
+
     await auto_video_send(event, target_ytb_video_path)
 
 
