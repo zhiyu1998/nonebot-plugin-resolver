@@ -456,7 +456,7 @@ async def tiktok(event: Event) -> None:
         # logger.info(url)
     else:
         url = re.search(url_reg, url)[0]
-    title = await get_video_title(url, IS_OVERSEA, resolver_proxy)
+    title = await get_video_title(url, IS_OVERSEA, resolver_proxy, 'tiktok')
 
     await tik.send(Message(f"{GLOBAL_NICKNAME}识别：TikTok，{title}\n"))
 
