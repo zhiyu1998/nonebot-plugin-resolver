@@ -24,6 +24,7 @@ async def get_video_title(url: str, is_oversea: bool, my_proxy=None, video_type=
 async def download_ytb_video(url, is_oversea, path, my_proxy=None, video_type='youtube'):
     ydl_opts = {
         'outtmpl': f'{path}/temp.%(ext)s',
+        'format': 'bv*[width=1280][height=720]+ba[ext=m4a]',
         'merge_output_format': 'mp4',
     }
     if video_type == 'youtube':
