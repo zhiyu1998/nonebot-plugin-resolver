@@ -456,7 +456,7 @@ async def tiktok(event: Event) -> None:
         # logger.info(url)
     else:
         url = re.search(url_reg, url)[0]
-    title = get_video_title(url, IS_OVERSEA, resolver_proxy)
+    title = await get_video_title(url, IS_OVERSEA, resolver_proxy)
 
     await tik.send(Message(f"{GLOBAL_NICKNAME}识别：TikTok，{title}\n"))
 
@@ -648,12 +648,12 @@ async def youtube(bot: Bot, event: Event):
     # 海外服务器判断
     proxy = None if IS_OVERSEA else resolver_proxy
 
-    title = get_video_title(msg_url, IS_OVERSEA, proxy)
+    title = await get_video_title(msg_url, IS_OVERSEA, proxy)
 
     await y2b.send(Message(f"{GLOBAL_NICKNAME}识别：油管，{title}\n"))
 
     target_ytb_video_path = await download_ytb_video(msg_url, IS_OVERSEA, os.getcwd(), proxy)
-
+ytb
     await auto_video_send(event, target_ytb_video_path)
 
 
