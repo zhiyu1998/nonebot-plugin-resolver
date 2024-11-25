@@ -522,6 +522,7 @@ async def twitter(bot: Bot, event: Event):
 
     x_data: object = x_req(x_url).json()['data']
 
+    
     if x_data is None:
         x_url = x_url + '/photo/1'
         logger.info(x_url)
@@ -532,9 +533,10 @@ async def twitter(bot: Bot, event: Event):
 
     await twit.send(Message(f"{GLOBAL_NICKNAME}识别：小蓝鸟学习版"))
 
+    proxy = None if IS_OVERSEA else resolver_proxy
     # 图片
     if x_url_res.endswith(".jpg") or x_url_res.endswith(".png"):
-        res = await download_img(x_url_res, '', resolver_proxy)
+        res = await download_img(x_url_res, '', proxy)
     else:
         # 视频
         res = await download_video(x_url_res)
