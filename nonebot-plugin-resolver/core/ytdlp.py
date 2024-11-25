@@ -7,7 +7,9 @@ def get_video_title(url: str, is_oversea: bool, my_proxy=None) -> str:
     command = ["yt-dlp", "--get-title", url]
     if not is_oversea and my_proxy:
         command += ["--proxy", my_proxy]
-
+    if "youtube" in url:
+      command.insert(1, "--cookies")
+      command.insert(2, "ytb_cookies.txt")
     # 执行命令并捕获输出
     result = subprocess.run(command, capture_output=True, text=True) #, encoding='utf-8'
 
@@ -26,7 +28,7 @@ async def download_ytb_video(url, is_oversea, path, my_proxy=None, video_type='y
     # 构建命令
     command = []
     if video_type == 'youtube':
-        command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", "--merge-output-format", "mp4", url]
+        command = ["yt-dlp", "--cookies", "ytb_cookies.txt", "-P", path, "-o", "temp.%(ext)s", "--merge-output-format", "mp4", url]
     elif video_type == 'tiktok':
         command = ["yt-dlp", "-P", path, "-o", "temp.%(ext)s", url]
 
@@ -44,3 +46,4 @@ async def download_ytb_video(url, is_oversea, path, my_proxy=None, video_type='y
 
     # 成功下载
     return path + "/" + "temp.mp4"
+  
