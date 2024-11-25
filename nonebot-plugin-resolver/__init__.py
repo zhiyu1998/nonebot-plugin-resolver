@@ -539,7 +539,7 @@ async def twitter(bot: Bot, event: Event):
         res = await download_img(x_url_res, '', proxy)
     else:
         # 视频
-        res = await download_video(x_url_res)
+        res = await download_video(x_url_res, proxy)
     aio_task_res = auto_determine_send_type(int(bot.self_id), res)
 
     # 发送异步后的数据
