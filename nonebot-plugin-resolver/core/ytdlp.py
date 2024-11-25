@@ -28,7 +28,8 @@ async def download_ytb_video(url, is_oversea, path, my_proxy=None, video_type='y
     }
     if video_type == 'youtube':
         ydl_opts['cookiefile'] = 'ytb_cookies.txt'
-        ydl_opts['format'] = 'bv*[width=1280][height=720]+ba[ext=m4a]'
+        if not '/shorts/' in url:
+            ydl_opts['format'] = 'bv*[width=1280][height=720]+ba'
     if not is_oversea and my_proxy:
         ydl_opts['proxy'] = my_proxy
 
