@@ -526,18 +526,20 @@ async def twitter(bot: Bot, event: Event):
         x_url = x_url + '/photo/1'
         logger.info(x_url)
         x_data = x_req(x_url).json()['data']
-    logger.info(x_data)
 
     x_url_res = x_data['url']
 
     await twit.send(Message(f"{GLOBAL_NICKNAME}识别：小蓝鸟学习版"))
 
+    # 海外服务器判断
+    proxy = None if IS_OVERSEA else resolver_proxy
+
     # 图片
     if x_url_res.endswith(".jpg") or x_url_res.endswith(".png"):
-        res = await download_img(x_url_res, '', resolver_proxy)
+        res = await download_img(x_url_res, '', proxy)
     else:
         # 视频
-        res = await download_video(x_url_res)
+        res = await download_video(x_url_res, proxy)
     aio_task_res = auto_determine_send_type(int(bot.self_id), res)
 
     # 发送异步后的数据
