@@ -496,7 +496,7 @@ async def ac(event: Event) -> None:
 @resolve_controller
 async def twitter(bot: Bot, event: Event):
     """
-        推特解析
+        X解析
     :param bot:
     :param event:
     :return:
