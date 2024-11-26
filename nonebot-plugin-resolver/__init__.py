@@ -56,7 +56,7 @@ BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 credential = Credential(sessdata=BILI_SESSDATA)
 
 bili23 = on_regex(
-    r"(bilibili.com|b23.tv|BV[0-9a-zA-Z]{10})", priority=1
+    r"(bilibili.com|b23.tv|^BV[0-9a-zA-Z]{10}$)", priority=1
 )
 douyin = on_regex(
     r"(v.douyin.com)", priority=1
@@ -334,7 +334,7 @@ async def bilibili(bot: Bot, event: Event) -> None:
         await asyncio.gather(
             download_b_file(video_url, f"{path}-video.m4s", logger.info),
             download_b_file(audio_url, f"{path}-audio.m4s", logger.info))
-        merge_file_to_mp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4")
+        await merge_file_to_mp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4")
     finally:
         remove_res = remove_files([f"{video_id}-video.m4s", f"{video_id}-audio.m4s"])
         logger.info(remove_res)
@@ -456,7 +456,7 @@ async def tiktok(event: Event) -> None:
         # logger.info(url)
     else:
         url = re.search(url_reg, url)[0]
-    title = get_video_title(url, IS_OVERSEA, resolver_proxy)
+    title = await get_video_title(url, IS_OVERSEA, resolver_proxy, 'tiktok')
 
     await tik.send(Message(f"{GLOBAL_NICKNAME}识别：TikTok，{title}\n"))
 
@@ -522,6 +522,7 @@ async def twitter(bot: Bot, event: Event):
 
     x_data: object = x_req(x_url).json()['data']
 
+    
     if x_data is None:
         x_url = x_url + '/photo/1'
         logger.info(x_url)
@@ -648,7 +649,7 @@ async def youtube(bot: Bot, event: Event):
     # 海外服务器判断
     proxy = None if IS_OVERSEA else resolver_proxy
 
-    title = get_video_title(msg_url, IS_OVERSEA, proxy)
+    title = await get_video_title(msg_url, IS_OVERSEA, proxy)
 
     await y2b.send(Message(f"{GLOBAL_NICKNAME}识别：油管，{title}\n"))
 
