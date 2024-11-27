@@ -177,7 +177,8 @@ def resolve_controller(func):
     :return:
     """
 
-    logger.debug(f"[nonebot-plugin-resolver][解析全局控制] 加载 {func.__name__} {'禁止' if func.__name__ in GLOBAL_RESOLVE_CONTROLLER else '允许' }")
+    logger.debug(
+        f"[nonebot-plugin-resolver][解析全局控制] 加载 {func.__name__} {'禁止' if func.__name__ in GLOBAL_RESOLVE_CONTROLLER else '允许'}")
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -334,9 +335,9 @@ async def bilibili(bot: Bot, event: Event) -> None:
         await asyncio.gather(
             download_b_file(video_url, f"{path}-video.m4s", logger.info),
             download_b_file(audio_url, f"{path}-audio.m4s", logger.info))
-        await merge_file_to_mp4(f"{video_id}-video.m4s", f"{video_id}-audio.m4s", f"{path}-res.mp4")
+        await merge_file_to_mp4(f"{path}-video.m4s", f"{path}-audio.m4s", f"{path}-res.mp4")
     finally:
-        remove_res = remove_files([f"{video_id}-video.m4s", f"{video_id}-audio.m4s"])
+        remove_res = remove_files([f"{path}-video.m4s", f"{path}-audio.m4s"])
         logger.info(remove_res)
     # 发送出去
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
@@ -522,7 +523,6 @@ async def twitter(bot: Bot, event: Event):
 
     x_data: object = x_req(x_url).json()['data']
 
-    
     if x_data is None:
         x_url = x_url + '/photo/1'
         logger.info(x_url)
@@ -560,7 +560,7 @@ async def xiaohongshu(bot: Bot, event: Event):
     :return:
     """
     msg_url = re.search(r"(http:|https:)\/\/(xhslink|(www\.)xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
-                        str(event.message).strip())[0]
+                        str(event.message).replace("&amp;", "&").strip())[0]
     # 如果没有设置xhs的ck就结束，因为获取不到
     xhs_ck = getattr(global_config, "xhs_ck", "")
     if xhs_ck == "":
@@ -582,7 +582,6 @@ async def xiaohongshu(bot: Bot, event: Event):
     if not xhs_id:
         xhs_id = re.search(r'source=note&noteId=(\w+)', msg_url)
     xhs_id = xhs_id[1]
-
     # 解析 URL 参数
     parsed_url = urlparse(msg_url)
     params = parse_qs(parsed_url.query)
