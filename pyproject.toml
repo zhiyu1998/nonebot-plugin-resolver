@@ -9,7 +9,7 @@ repository = "https://github.com/zhiyu1998/nonebot-plugin-resolver"
 keywords = ["nonebot", "nonebot2", "resolver"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4.0"
+python = ">=3.9"
 aiohttp = "^3.7"
 httpx = ">=0.23"
 PyExecJS = "^1.5.1"
