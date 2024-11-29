@@ -1,11 +1,9 @@
-import asyncio
-import platform
-import subprocess
-
-import aiofiles
 import httpx
+import subprocess
+import platform
+import aiofiles
+import asyncio
 from nonebot import logger
-
 from ..constants import BILIBILI_HEADER
 
 
@@ -27,7 +25,6 @@ async def download_b_file(url, full_file_name, progress_callback):
                     current_len += len(chunk)
                     await f.write(chunk)
                     progress_callback(f'下载进度：{round(current_len / total_len, 3)}')
-
 
 async def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output_file_name: str, log_output: bool = False):
     """
@@ -61,7 +58,6 @@ async def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output
             stderr=stderr
         )
         await process.communicate()
-
 
 def extra_bili_info(video_info):
     """
