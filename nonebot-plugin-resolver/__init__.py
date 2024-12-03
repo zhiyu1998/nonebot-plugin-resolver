@@ -18,7 +18,7 @@ from nonebot.rule import to_me
 
 from .config import Config
 # noinspection PyUnresolvedReferences
-from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
+from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, DOUYIN_TEMP_API, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
     BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, \
     WEIBO_SINGLE_INFO, KUGOU_TEMP_API
 from .core.acfun import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
@@ -362,68 +362,59 @@ async def dy(bot: Bot, event: Event) -> None:
     :return:
     """
     # 消息
-    msg: str = str(event.message).strip()
-    logger.info(msg)
-    # 正则匹配
-    reg = r"(http:|https:)\/\/v.douyin.com\/[A-Za-z\d._?%&+\-=#]*"
-    dou_url = re.search(reg, msg, re.I)[0]
-    dou_url_2 = httpx.get(dou_url).headers.get('location')
-    # logger.error(dou_url_2)
-    reg2 = r".*(video|note)\/(\d+)\/(.*?)"
-    # 获取到ID
-    dou_id = re.search(reg2, dou_url_2, re.I)[2]
-    # logger.info(dou_id)
-    # 如果没有设置dy的ck就结束，因为获取不到
+    msg = str(event.message).strip()
+    match = re.search(r"(http:|https:)\/\/v.douyin.com\/[A-Za-z\d._?%&+\-=#]*", msg, re.I)
+    dou_url = match.group(0)
     douyin_ck = getattr(global_config, "douyin_ck", "")
-    if douyin_ck == "":
-        logger.error(global_config)
-        await douyin.send(Message(f"{GLOBAL_NICKNAME}识别：抖音，无法获取到管理员设置的抖音ck！"))
+    if not douyin_ck:
+        await douyin.finish(Message(f"{GLOBAL_NICKNAME}\n来源：【抖音】\n无法获取管理员设置的抖音ck！"))
         return
-    # API、一些后续要用到的参数
-    headers = {
-                  'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
-                  'referer': f'https://www.douyin.com/video/{dou_id}',
-                  'cookie': douyin_ck
-              } | COMMON_HEADER
-    api_url = DOUYIN_VIDEO.replace("{}", dou_id)
-    api_url = generate_x_bogus_url(api_url, headers)  # 如果请求失败直接返回
-    async with aiohttp.ClientSession() as session:
-        async with session.get(api_url, headers=headers, timeout=10) as response:
-            detail = await response.json()
-            if detail is None:
-                await douyin.send(Message(f"{GLOBAL_NICKNAME}识别：抖音，解析失败！"))
-                return
-            # 获取信息
-            detail = detail['aweme_detail']
-            # 判断是图片还是视频
-            url_type_code = detail['aweme_type']
-            url_type = URL_TYPE_CODE_DICT.get(url_type_code, 'video')
-            await douyin.send(Message(f"{GLOBAL_NICKNAME}识别：抖音，{detail.get('desc')}"))
-            # 根据类型进行发送
-            if url_type == 'video':
-                # 识别播放地址
-                player_uri = detail.get("video").get("play_addr")['uri']
-                player_real_addr = DY_TOUTIAO_INFO.replace("{}", player_uri)
-                # 发送视频
-                # logger.info(player_addr)
-                # await douyin.send(Message(MessageSegment.video(player_addr)))
-                await auto_video_send(event, player_real_addr)
-            elif url_type == 'image':
-                # 无水印图片列表/No watermark image list
-                no_watermark_image_list = []
-                # 有水印图片列表/With watermark image list
-                watermark_image_list = []
-                # 遍历图片列表/Traverse image list
-                for i in detail['images']:
-                    # 无水印图片列表
-                    # no_watermark_image_list.append(i['url_list'][0])
-                    no_watermark_image_list.append(MessageSegment.image(i['url_list'][0]))
-                    # 有水印图片列表
-                    # watermark_image_list.append(i['download_url_list'][0])
-                # 异步发送
-                # logger.info(no_watermark_image_list)
-                # imgList = await asyncio.gather([])
-                await send_forward_both(bot, event, make_node_segment(bot.self_id, no_watermark_image_list))
+    try:  # 尝试获取视频信息
+        dou_url_2 = httpx.get(dou_url, follow_redirects=True).url
+        dou_id = re.search(r".*(video|note)\/(\d+)\/(.*?)", str(dou_url_2), re.I).group(2)
+        headers = {
+            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'referer': f'https://www.douyin.com/video/{dou_id}',
+            'cookie': douyin_ck
+        } | COMMON_HEADER
+        api_url = DOUYIN_VIDEO.format(dou_id)
+        api_url = generate_x_bogus_url(api_url, headers)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url, headers=headers, timeout=10) as response:
+                detail = await response.json()
+                if not detail:
+                    raise ValueError("视频信息返回空数据")
+                detail = detail['aweme_detail']
+                url_type = URL_TYPE_CODE_DICT.get(detail['aweme_type'], 'video')  # 获取类型
+                await douyin.send(Message(f"{GLOBAL_NICKNAME}\n来源：【抖音】\n标题：{detail.get('desc', '')}")) 
+
+                if url_type == 'video':  # 视频类型
+                    player_uri = detail['video']['play_addr']['uri']
+                    player_real_addr = DY_TOUTIAO_INFO.format(player_uri)
+                    await auto_video_send(event, player_real_addr, IS_LAGRANGE)
+                    return  # 发送后返回
+                elif url_type == 'image':  # 图片类型，这里改用备用API
+                    raise ValueError("检测到图片类型，将使用备用 API") 
+    except (AttributeError, aiohttp.ClientError, ValueError, KeyError) as e:
+        logger.warning(f"视频解析失败或检测到图片类型，尝试使用备用 API: {e}")
+    # 使用备用 API 尝试处理
+    try:
+        douyin_temp_data = httpx.get(DOUYIN_TEMP_API.format(dou_url), headers=COMMON_HEADER).json()
+        data = douyin_temp_data.get("data", {})
+        images = data.get("item", {}).get("images", [])
+
+        if images:
+            author = data.get("author", {}).get("name", "")
+            title = data.get("item", {}).get("title", "")
+            await douyin.send(Message(f"{GLOBAL_NICKNAME}\n来源：【抖音】\n作者：{author}\n标题：{title}"))
+            await send_forward_both(bot, event, make_node_segment(bot.self_id, [MessageSegment.image(url) for url in images]))
+            return
+
+        await douyin.finish(Message(f"{GLOBAL_NICKNAME}\n来源：【抖音】\n备用解析失败！"))
+
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        logger.error(f"备用解析失败: {e}")
+        await douyin.finish(Message(f"{GLOBAL_NICKNAME}\n来源：【抖音】\n解析失败！"))
 
 
 @tik.handle()
