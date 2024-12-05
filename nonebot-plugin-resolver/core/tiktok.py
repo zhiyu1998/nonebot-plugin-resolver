@@ -3,6 +3,8 @@ import execjs
 import urllib.parse
 import os
 
+import httpx
+
 header = {
     'User-Agent': "Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Mobile Safari/537.36 Edg/87.0.664.66"
 }
@@ -36,3 +38,31 @@ def generate_random_str(self, randomlength=16):
     for _ in range(randomlength):
         random_str += base_str[random.randint(0, length)]
     return random_str
+
+
+async def dou_transfer_other(dou_url):
+    """
+        图集临时解决方案
+    :param dou_url:
+    :return:
+    """
+    douyin_temp_data = httpx.get(f"https://api.xingzhige.com/API/douyin/?url={dou_url}").json()
+    data = douyin_temp_data.get("data", { })
+    item_id = data.get("jx", { }).get("item_id")
+    item_type = data.get("jx", { }).get("type")
+
+    if not item_id or not item_type:
+        raise ValueError("备用 API 未返回 item_id 或 type")
+
+    # 备用API成功解析图集，直接处理
+    if item_type == "图集":
+        item = data.get("item", { })
+        cover = item.get("cover", "")
+        images = item.get("images", [])
+        # 只有在有图片的情况下才发送
+        if images:
+            author = data.get("author", { }).get("name", "")
+            title = data.get("item", { }).get("title", "")
+            return cover, author, title, images
+
+    return None, None, None, None
