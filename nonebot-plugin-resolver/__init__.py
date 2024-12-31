@@ -56,7 +56,7 @@ BILI_SESSDATA: str = str(getattr(global_config, "bili_sessdata", ""))
 credential = Credential(sessdata=BILI_SESSDATA)
 
 bili23 = on_regex(
-    r"(bilibili.com|b23.tv|^BV[0-9a-zA-Z]{10}$)", priority=1
+    r"(bilibili.com|b23.tv|bili2233.cn|^BV[0-9a-zA-Z]{10}$)", priority=1
 )
 douyin = on_regex(
     r"(v.douyin.com)", priority=1
@@ -207,12 +207,16 @@ async def bilibili(bot: Bot, event: Event) -> None:
     url: str = str(event.message).strip()
     # 正则匹配
     url_reg = r"(http:|https:)\/\/(space|www|live).bilibili.com\/[A-Za-z\d._?%&+\-=\/#]*"
-    b_short_rex = r"(http:|https:)\/\/b23.tv\/[A-Za-z\d._?%&+\-=\/#]*"
+    b_short_rex = r"(http:|https:)\/\/(b23.tv|bili2233.cn)\/[A-Za-z\d._?%&+\-=\/#]*"
     # BV处理
     if re.match(r'^BV[1-9a-zA-Z]{10}$', url):
         url = 'https://www.bilibili.com/video/' + url
     # 处理短号、小程序问题
     if 'b23.tv' in url or ('b23.tv' and 'QQ小程序' in url):
+        b_short_url = re.search(b_short_rex, url.replace("\\", ""))[0]
+        resp = httpx.get(b_short_url, headers=BILIBILI_HEADER, follow_redirects=True)
+        url: str = str(resp.url)
+    else if  'bili2233.cn' in url or ('bili2233.cn' and 'QQ小程序' in url):
         b_short_url = re.search(b_short_rex, url.replace("\\", ""))[0]
         resp = httpx.get(b_short_url, headers=BILIBILI_HEADER, follow_redirects=True)
         url: str = str(resp.url)
