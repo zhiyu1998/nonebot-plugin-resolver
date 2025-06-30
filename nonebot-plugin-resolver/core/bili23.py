@@ -3,11 +3,45 @@ import platform
 import subprocess
 
 import aiofiles
+import shutil
 import httpx
 from nonebot import logger
 
 from ..constants import BILIBILI_HEADER
 
+
+async def is_ffmpeg_installed():
+    """检查ffmpeg是否安装"""
+
+    # 检查ffmpeg是否在环境变量中
+    ffmpeg_path = shutil.which('ffmpeg')
+    if ffmpeg_path:
+        return True
+    
+    # 如果仍然未找到，尝试异步调用ffmpeg命令
+    try:
+        # 根据操作系统选择合适的命令
+        if platform.system() == "Windows":
+            process = await asyncio.create_subprocess_exec(
+                'ffmpeg', '-version',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+        else:
+            process = await asyncio.create_subprocess_exec(
+                'ffmpeg', '-version',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+        await process.wait()
+        if process.returncode == 0:
+            return True
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        logger.warning(f"检查ffmpeg时发生错误: {e}")
+
+    return False
 
 async def download_b_file(url, full_file_name, progress_callback):
     """
@@ -39,6 +73,11 @@ async def merge_file_to_mp4(v_full_file_name: str, a_full_file_name: str, output
     :return:
     """
     logger.info(f'正在合并：{output_file_name}')
+
+    # 检查 ffmpeg 是否安装
+    if not await is_ffmpeg_installed():
+        logger.error('ffmpeg 未安装，请先安装 ffmpeg 并配置环境变量。可参考插件主页说明。')
+        return
 
     # 构建 ffmpeg 命令
     command = f'ffmpeg -y -i "{v_full_file_name}" -i "{a_full_file_name}" -c copy "{output_file_name}"'
