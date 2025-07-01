@@ -8,7 +8,7 @@
 
 ---
 
-_✨ NoneBot2 链接分享解析器插件 ✨_
+_✨ NoneBot2 链接分享解析器插件（nonebot-plugin-resolver） ✨_
 
 
 <a href="./LICENSE">
