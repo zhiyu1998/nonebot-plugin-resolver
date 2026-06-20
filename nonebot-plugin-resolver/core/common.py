@@ -193,3 +193,31 @@ def split_and_strip(text, sep=None) -> List[str]:
     split_text = text.strip().split(sep)
     # 去除每个子字符串两边的空格
     return [sub_text.strip() for sub_text in split_text]
+
+# ==================== 评论配置持久化工具 ====================
+COMMENT_SHUTDOWN_LIST_NAME = "comment_shutdown_list.json"
+COMMENT_MODE_MAP_NAME = "comment_mode_map.json"
+
+def load_or_initialize_comment_list() -> List[Any]:
+    """读取关闭评论的名单"""
+    data_file = store.get_data_file(PLUGIN_NAME, COMMENT_SHUTDOWN_LIST_NAME)
+    if not data_file.exists():
+        data_file.write_text(json.dumps([]))
+    return list(json.loads(data_file.read_text()))
+
+def save_comment_list(shutdown_list: list):
+    """保存关闭评论的名单"""
+    data_file = store.get_data_file(PLUGIN_NAME, COMMENT_SHUTDOWN_LIST_NAME)
+    data_file.write_text(json.dumps(shutdown_list))
+
+def load_comment_mode_map() -> dict:
+    """读取各群的评论模式 (text/image)"""
+    data_file = store.get_data_file(PLUGIN_NAME, COMMENT_MODE_MAP_NAME)
+    if not data_file.exists():
+        data_file.write_text(json.dumps({}))
+    return dict(json.loads(data_file.read_text()))
+
+def save_comment_mode_map(mode_map: dict):
+    """保存各群的评论模式"""
+    data_file = store.get_data_file(PLUGIN_NAME, COMMENT_MODE_MAP_NAME)
+    data_file.write_text(json.dumps(mode_map))

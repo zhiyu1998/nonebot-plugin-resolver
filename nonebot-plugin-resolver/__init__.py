@@ -1,4 +1,7 @@
+import re
+import json
 import asyncio
+import aiohttp
 import os.path
 from functools import wraps
 from typing import cast, Iterable, Union
@@ -19,7 +22,7 @@ from nonebot.rule import to_me
 from .config import Config
 # noinspection PyUnresolvedReferences
 from .constants import COMMON_HEADER, URL_TYPE_CODE_DICT, DOUYIN_VIDEO, GENERAL_REQ_LINK, XHS_REQ_LINK, DY_TOUTIAO_INFO, \
-    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, VIDEO_MAX_MB, \
+    BILIBILI_HEADER, NETEASE_API_CN, NETEASE_TEMP_API, NETEASE_TEMP_API_FALLBACK, VIDEO_MAX_MB, \
     WEIBO_SINGLE_INFO, KUGOU_TEMP_API
 from .core.acfun import parse_url, download_m3u8_videos, parse_m3u8, merge_ac_file_to_mp4
 from .core.bili23 import download_b_file, merge_file_to_mp4, extra_bili_info
@@ -27,6 +30,16 @@ from .core.common import *
 from .core.tiktok import generate_x_bogus_url, dou_transfer_other
 from .core.weibo import mid2id
 from .core.ytdlp import get_video_title, download_ytb_video
+from .core.common import (
+    load_or_initialize_comment_list,
+    save_comment_list,
+    load_comment_mode_map,
+    save_comment_mode_map
+)
+
+
+
+
 
 __plugin_meta__ = PluginMetadata(
     name="链接分享解析器",
@@ -58,8 +71,12 @@ credential = Credential(sessdata=BILI_SESSDATA)
 bili23 = on_regex(
     r"(bilibili.com|b23.tv|bili2233.cn|^BV[0-9a-zA-Z]{10}$)", priority=1
 )
+# 之前的：douyin = on_regex(r"(v.douyin.com)", priority=1)
+# 修改后的：支持 v.douyin.com、iesdouyin.com 和 douyin.com/video 或 /note
 douyin = on_regex(
-    r"(v.douyin.com)", priority=1
+    r"(v\.douyin\.com|iesdouyin\.com|douyin\.com\/(video|note))",
+    priority=1,
+    block=True
 )
 tik = on_regex(
     r"(www.tiktok.com|vt.tiktok.com|vm.tiktok.com)", priority=1
@@ -87,9 +104,16 @@ kg = on_regex(
 enable_resolve = on_command('开启解析', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
 disable_resolve = on_command('关闭解析', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
 check_resolve = on_command('查看关闭解析', permission=SUPERUSER)
-
+# 注册评论控制指令
+enable_comment = on_command('开启评论', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+disable_comment = on_command('关闭评论', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+switch_comment_mode = on_command('切换评论模式', rule=to_me(), permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+reload_comment_template = on_command('重载评论模板', permission=SUPERUSER)
 # 内存中关闭解析的名单，第一次先进行初始化
 resolve_shutdown_list_in_memory: list = load_or_initialize_list()
+# 在内存中初始化评论控制名单
+comment_shutdown_list_in_memory: list = load_or_initialize_comment_list()
+comment_mode_map_in_memory: dict = load_comment_mode_map()
 
 
 def resolve_handler(func):
@@ -169,6 +193,50 @@ async def check_disable(bot: Bot, event: Event):
     await bot.send_private_msg(user_id=event.user_id, message=Message(
         "[nonebot-plugin-resolver 关闭名单如下：]" + "\n\n" + memory_disable_list + '\n\n' + persistence_disable_list + "\n\n" + "🌟 温馨提示：如果想关闭解析需要艾特我然后输入: 关闭解析"))
 
+@enable_comment.handle()
+async def enable_cmt(bot: Bot, event: Event):
+    send_id = get_id_both(event)
+    if send_id in comment_shutdown_list_in_memory:
+        comment_shutdown_list_in_memory.remove(send_id)
+        save_comment_list(comment_shutdown_list_in_memory)
+        await enable_comment.finish('评论已开启')
+    else:
+        await enable_comment.finish('评论已开启，无需重复开启')
+
+
+@disable_comment.handle()
+async def disable_cmt(bot: Bot, event: Event):
+    send_id = get_id_both(event)
+    if send_id not in comment_shutdown_list_in_memory:
+        comment_shutdown_list_in_memory.append(send_id)
+        save_comment_list(comment_shutdown_list_in_memory)
+        await disable_comment.finish('评论已关闭')
+    else:
+        await disable_comment.finish('评论已关闭，无需重复关闭')
+
+
+@switch_comment_mode.handle()
+async def switch_cmt_mode(bot: Bot, event: Event):
+    send_id = str(get_id_both(event))
+    current_mode = comment_mode_map_in_memory.get(send_id, 'image')
+    new_mode = 'text' if current_mode == 'image' else 'image'
+
+    comment_mode_map_in_memory[send_id] = new_mode
+    save_comment_mode_map(comment_mode_map_in_memory)
+
+    mode_name = "【文字合并转发】" if new_mode == 'text' else "【HTML图片渲染】"
+    await switch_comment_mode.finish(f'已切换至 {mode_name} 评论模式')
+
+
+@reload_comment_template.handle()
+async def reload_tpl(bot: Bot, event: Event):
+    try:
+        from .core.comment import load_template, load_bili_template
+        load_template(force_reload=True)
+        load_bili_template(force_reload=True)  # 新增：同步强制重新刷盘 B站 模板
+    except Exception as e:
+        await reload_comment_template.finish(f'模板重载失败: {e}')
+    await reload_comment_template.finish('评论 HTML 模板重载成功！')
 
 def resolve_controller(func):
     """
@@ -326,9 +394,37 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # 获取下载链接
     logger.info(page_num)
     download_url_data = await v.get_download_url(page_index=page_num)
-    detecter = VideoDownloadURLDataDetecter(download_url_data)
-    streams = detecter.detect_best_streams()
-    video_url, audio_url = streams[0].url, streams[1].url
+
+    try:
+        # 1. 尝试使用官方库的选择器
+        detecter = VideoDownloadURLDataDetecter(download_url_data)
+        streams = detecter.detect_best_streams()
+        video_url, audio_url = streams[0].url, streams[1].url
+    except Exception as e:
+        # 2. 如果官方库因为编码枚举不匹配而崩溃，自动执行手动提取兜底
+        logger.warning(f"[Bilibili] detect_best_streams 发生错误: {e}，正在启用手动提取流...")
+        try:
+            # 兼容 DASH (分音视频) 格式
+            dash_data = download_url_data.get('dash', {})
+            video_list = dash_data.get('video', [])
+            audio_list = dash_data.get('audio', [])
+
+            if video_list and audio_list:
+                # 默认列表中的第一个就是画质/音质最好的
+                video_url = video_list[0].get('baseUrl') or video_list[0].get('base_url')
+                audio_url = audio_list[0].get('baseUrl') or audio_list[0].get('base_url')
+            else:
+                # 兼容非 DASH 的 DURL 格式
+                durl_list = download_url_data.get('durl', [])
+                if durl_list:
+                    video_url = durl_list[0].get('url')
+                    audio_url = None
+                else:
+                    raise Exception("未找到任何可用的视频流")
+        except Exception as fallback_err:
+            logger.error(f"[Bilibili] 备用流解析也宣告失败: {fallback_err}")
+            await bili23.finish("解析失败：B站流媒体接口发生不兼容的变更。")
+            return
     # 下载视频和音频
     path = os.getcwd() + "/" + video_id
     try:
@@ -342,6 +438,48 @@ async def bilibili(bot: Bot, event: Event) -> None:
     # 发送出去
     # await bili23.send(Message(MessageSegment.video(f"{path}-res.mp4")))
     await auto_video_send(event, f"{path}-res.mp4")
+    # ======= 【核心增加：获取并渲染 B站 视频评论区】 =======
+    send_id = get_id_both(event)
+    if send_id not in comment_shutdown_list_in_memory:
+        async def handle_bili_video_comments():
+            try:
+                # 自动防崩溃：如果在长视频下载期间关闭了解析或评论，自动销毁进程 [1]
+                if send_id in resolve_shutdown_list_in_memory or send_id in comment_shutdown_list_in_memory:
+                    return
+
+                from .core.comment import get_bilibili_comments, render_bili_comments_image, \
+                    format_bili_comments_to_nodes
+
+                # 安全提取作者信息
+                up_mid = video_info.get("owner", {}).get("mid")
+                aid = video_info.get("aid")
+                bvid = video_info.get("bvid")
+
+                async with aiohttp.ClientSession() as session:
+                    comments = await get_bilibili_comments(session, aid, BILI_SESSDATA, bvid, up_mid)
+
+                if comments:
+                    # 发送前最末一次安全校验
+                    if send_id in resolve_shutdown_list_in_memory or send_id in comment_shutdown_list_in_memory:
+                        return
+
+                    mode = comment_mode_map_in_memory.get(str(send_id), 'image')
+                    if mode == 'image':
+                        try:
+                            pic_bytes = await render_bili_comments_image(comments, video_title)
+                            await send_both(bot, event, MessageSegment.image(pic_bytes))
+                        except Exception as img_err:
+                            logger.error(f"[Comment] B站图片渲染失败，自动降级为文字模式: {img_err}")
+                            mode = 'text'
+
+                    if mode == 'text':
+                        nodes = format_bili_comments_to_nodes(bot.self_id, comments, video_title, GLOBAL_NICKNAME)
+                        await send_forward_both(bot, event, nodes)
+            except Exception as c_err:
+                logger.error(f"[Comment] 获取发送 B站 评论区失败: {c_err}")
+
+        asyncio.create_task(handle_bili_video_comments())
+    # =======================================================
     # 这里是总结内容，如果写了cookie就可以
     if BILI_SESSDATA != '':
         ai_conclusion = await v.get_ai_conclusion(await v.get_cid(0))
@@ -405,6 +543,7 @@ async def dy(bot: Bot, event: Event) -> None:
                 return
             # 获取信息
             detail = detail['aweme_detail']
+            desc = detail.get('desc', '')
             # 判断是图片还是视频
             url_type_code = detail['aweme_type']
             url_type = URL_TYPE_CODE_DICT.get(url_type_code, 'video')
@@ -418,6 +557,52 @@ async def dy(bot: Bot, event: Event) -> None:
                 # logger.info(player_addr)
                 # await douyin.send(Message(MessageSegment.video(player_addr)))
                 await auto_video_send(event, player_real_addr)
+                # ======= 【双保险集成：视频评论区获取与渲染】 =======
+                send_id = get_id_both(event)
+                if send_id not in comment_shutdown_list_in_memory:
+                    async def handle_dy_video_comments():
+                        try:
+                            # 双重安全拦截：如果下载期间关闭了解析或评论，自动销毁进程
+                            if send_id in resolve_shutdown_list_in_memory or send_id in comment_shutdown_list_in_memory:
+                                return
+
+                            from .core.comment import get_douyin_comments, render_comments_image, \
+                                format_comments_to_nodes
+                            c_headers = {
+                                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                                            "referer": f"https://www.douyin.com/video/{dou_id}",
+                                            "cookie": douyin_ck,
+                                        } | COMMON_HEADER
+
+                            # 提取详情页里绝不会为空的视频作者 sec_uid
+                            author_sec_uid = detail.get("author", {}).get("sec_uid")
+
+                            async with aiohttp.ClientSession() as session:
+                                # 传入 author_sec_uid [1]
+                                comments = await get_douyin_comments(session, dou_id, c_headers, author_sec_uid)
+                            if comments:
+                                # 发送前最后一次安全校验
+                                if send_id in resolve_shutdown_list_in_memory or send_id in comment_shutdown_list_in_memory:
+                                    return
+
+                                mode = comment_mode_map_in_memory.get(str(send_id), 'image')
+                                if mode == 'image':
+                                    try:
+                                        pic_bytes = await render_comments_image(comments, desc or "抖音视频")
+                                        await send_both(bot, event, MessageSegment.image(pic_bytes))
+                                    except Exception as img_err:
+                                        logger.error(f"[Comment] 图片渲染失败，自动降级为文字模式: {img_err}")
+                                        mode = 'text'
+
+                                if mode == 'text':
+                                    nodes = format_comments_to_nodes(bot.self_id, comments, desc or "抖音视频",
+                                                                     GLOBAL_NICKNAME)
+                                    await send_forward_both(bot, event, nodes)
+                        except Exception as c_err:
+                            logger.error(f"[Comment] 获取发送评论区失败: {c_err}")
+
+                    asyncio.create_task(handle_dy_video_comments())
+                # ===============================================
             elif url_type == 'image':
                 # 无水印图片列表/No watermark image list
                 no_watermark_image_list = []
@@ -434,6 +619,48 @@ async def dy(bot: Bot, event: Event) -> None:
                 # logger.info(no_watermark_image_list)
                 # imgList = await asyncio.gather([])
                 await send_forward_both(bot, event, make_node_segment(bot.self_id, no_watermark_image_list))
+                # ======= 【双保险集成：图集评论区获取与渲染】 =======
+                send_id = get_id_both(event)
+                if send_id not in comment_shutdown_list_in_memory:
+                    async def handle_dy_image_comments():
+                        try:
+                            if send_id in resolve_shutdown_list_in_memory or send_id in comment_shutdown_list_in_memory:
+                                return
+
+                            from .core.comment import get_douyin_comments, render_comments_image, \
+                                format_comments_to_nodes
+                            c_headers = {
+                                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                                            "referer": f"https://www.douyin.com/video/{dou_id}",
+                                            "cookie": douyin_ck,
+                                        } | COMMON_HEADER
+
+                            author_sec_uid = detail.get("author", {}).get("sec_uid")
+
+                            async with aiohttp.ClientSession() as session:
+                                # 传入 author_sec_uid [1]
+                                comments = await get_douyin_comments(session, dou_id, c_headers, author_sec_uid)
+                            if comments:
+                                if send_id in resolve_shutdown_list_in_memory or send_id in comment_shutdown_list_in_memory:
+                                    return
+
+                                mode = comment_mode_map_in_memory.get(str(send_id), 'image')
+                                if mode == 'image':
+                                    try:
+                                        pic_bytes = await render_comments_image(comments, desc or "抖音图集")
+                                        await send_both(bot, event, MessageSegment.image(pic_bytes))
+                                    except Exception as img_err:
+                                        logger.error(f"[Comment] 图片渲染失败，自动降级为文字模式: {img_err}")
+                                        mode = 'text'
+
+                                if mode == 'text':
+                                    nodes = format_comments_to_nodes(bot.self_id, comments, desc or "抖音图集",
+                                                                     GLOBAL_NICKNAME)
+                                    await send_forward_both(bot, event, nodes)
+                        except Exception as c_err:
+                            logger.error(f"[Comment] 获取发送评论区失败: {c_err}")
+
+                    asyncio.create_task(handle_dy_image_comments())
 
 
 @tik.handle()
@@ -674,35 +901,116 @@ async def netease(bot: Bot, event: Event):
     message = str(event.message)
     # 识别短链接
     if "163cn.tv" in message:
-        message = re.search(r"(http:|https:)\/\/163cn\.tv\/([a-zA-Z0-9]+)", message).group(0)
-        message = str(httpx.head(message, follow_redirects=True).url)
+        try:
+            short_url = re.search(r"(http:|https:)\/\/163cn\.tv\/([a-zA-Z0-9]+)", message).group(0)
+            async with httpx.AsyncClient() as client:
+                head_resp = await client.head(short_url, follow_redirects=True)
+            message = str(head_resp.url)
+        except Exception as e:
+            logger.error(f"[NCM] 短链解析失败: {e}")
+            await ncm.finish(Message(f"❌ {GLOBAL_NICKNAME}无法解析此网易云短链接。"))
 
-    ncm_id = re.search(r"id=(\d+)", message).group(1)
-    if ncm_id is None:
-        await ncm.finish(Message(f"❌ {GLOBAL_NICKNAME}识别：网易云，获取链接失败"))
-    # 拼接获取信息的链接
-    # ncm_detail_url = f'{NETEASE_API_CN}/song/detail?ids={ncm_id}'
-    # ncm_detail_resp = httpx.get(ncm_detail_url, headers=COMMON_HEADER)
-    # # 获取歌曲名
-    # ncm_song = ncm_detail_resp.json()['songs'][0]
-    # ncm_title = f'{ncm_song["name"]}-{ncm_song["ar"][0]["name"]}'.replace(r'[\/\?<>\\:\*\|".… ]', "")
+    match = re.search(r"id=(\d+)", message)
+    if not match:
+        await ncm.finish(Message(f"❌ {GLOBAL_NICKNAME}未能在链接中找到歌曲 ID。"))
 
-    # 对接临时接口
-    ncm_vip_data = httpx.get(f"{NETEASE_TEMP_API.replace('{}', ncm_id)}", headers=COMMON_HEADER).json()
-    ncm_url = ncm_vip_data['music_url']
-    ncm_cover = ncm_vip_data['cover']
-    ncm_singer = ncm_vip_data['singer']
-    ncm_title = ncm_vip_data['title']
-    await ncm.send(Message(
-        [MessageSegment.image(ncm_cover), MessageSegment.text(f'{GLOBAL_NICKNAME}识别：网易云音乐，{ncm_title}-{ncm_singer}')]))
-    # 下载音频文件后会返回一个下载路径
-    ncm_music_path = await download_audio(ncm_url)
-    # 发送语音
-    await ncm.send(Message(MessageSegment.record(ncm_music_path)))
-    # 发送群文件
-    await upload_both(bot, event, ncm_music_path, f'{ncm_title}-{ncm_singer}.{ncm_music_path.split(".")[-1]}')
-    if os.path.exists(ncm_music_path):
-        os.unlink(ncm_music_path)
+    ncm_id = match.group(1)
+    logger.info(f"[NCM] 歌曲 ID: {ncm_id}")
+
+    api_candidates = [
+        ("main", NETEASE_TEMP_API.replace('{}', ncm_id)),
+        ("fallback", NETEASE_TEMP_API_FALLBACK.replace('{}', ncm_id)),
+    ]
+
+    ncm_url = None
+    ncm_cover = None
+    ncm_singer = '未知歌手'
+    ncm_title = f'网易云歌曲_{ncm_id}'
+    last_error = None
+
+    for api_name, api_url in api_candidates:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.get(api_url, headers=COMMON_HEADER)
+            logger.debug(f"[NCM][{api_name}] 接口状态: {response.status_code} | 内容: {response.text}")
+
+            if response.status_code != 200:
+                last_error = f"HTTP {response.status_code}"
+                logger.warning(f"[NCM][{api_name}] 接口状态异常: {response.status_code}")
+                continue
+
+            resp_json = response.json()
+
+            if api_name == "main":
+                if resp_json.get('code') != 0:
+                    last_error = resp_json.get('message', '未知错误')
+                    logger.warning(f"[NCM][{api_name}] 接口返回错误: {last_error}")
+                    continue
+
+                data_list = resp_json.get('data')
+                if not isinstance(data_list, list) or not data_list:
+                    last_error = '接口未返回有效歌曲数据'
+                    logger.warning(f"[NCM][{api_name}] 接口未返回有效 data: {resp_json}")
+                    continue
+
+                song_data = data_list[0]
+                singers = song_data.get('singers') or []
+                singer_names = [
+                    singer.get('name') for singer in singers
+                    if isinstance(singer, dict) and singer.get('name')
+                ]
+
+                ncm_url = song_data.get('url')
+                ncm_cover = song_data.get('picurl')
+                ncm_singer = ' / '.join(singer_names) if singer_names else '未知歌手'
+                ncm_title = song_data.get('name') or f'网易云歌曲_{ncm_id}'
+            else:
+                if resp_json.get('status') != 200:
+                    last_error = resp_json.get('msg', '未知错误')
+                    logger.warning(f"[NCM][{api_name}] 接口返回错误: {last_error}")
+                    continue
+
+                ncm_url = resp_json.get('url')
+                ncm_cover = resp_json.get('pic')
+                ncm_singer = resp_json.get('ar_name') or '未知歌手'
+                ncm_title = resp_json.get('name') or f'网易云歌曲_{ncm_id}'
+
+            if ncm_url:
+                logger.info(f"[NCM] 使用 {api_name} 接口解析成功")
+                break
+
+            last_error = '未获取到播放链接'
+            logger.warning(f"[NCM][{api_name}] 接口未返回播放链接: {resp_json}")
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"[NCM][{api_name}] 接口请求失败: {e}")
+
+    if not ncm_url:
+        await ncm.finish(f"❌ 未获取到播放链接，主备接口均失败：{last_error or '未知错误'}")
+        return
+
+    await ncm.send(Message([
+        MessageSegment.image(ncm_cover),
+        MessageSegment.text(
+            f'{GLOBAL_NICKNAME}开始识别\n来源：网易云音乐\n'
+            f'歌名：{ncm_title} - {ncm_singer}'
+        ),
+    ]))
+
+    ncm_music_path = None
+    try:
+        ncm_music_path = await download_audio(ncm_url)
+        await ncm.send(Message(MessageSegment.record(ncm_music_path)))
+        await upload_both(
+            bot, event, ncm_music_path,
+            f'{ncm_title}-{ncm_singer}.{ncm_music_path.split(".")[-1]}',
+        )
+    except Exception as e:
+        logger.error(f"[NCM] 音频下载/发送失败: {e}")
+        await ncm.send("❌ 音频下载或发送失败。")
+    finally:
+        if ncm_music_path and os.path.exists(ncm_music_path):
+            os.unlink(ncm_music_path)
 
 
 @kg.handle()
@@ -921,6 +1229,9 @@ async def upload_both(bot: Bot, event: Event, file_path: str, name: str) -> None
     :param name:
     :return:
     """
+    # 清理文件名中的非法字符，QQ 不允许文件名包含 \ / : * ? " < > |
+    name = re.sub(r'[/\\]', '、', name)
+    name = re.sub(r'[:*?"<>|]', '_', name)
     if isinstance(event, GroupMessageEvent):
         # 上传群文件
         await bot.upload_group_file(group_id=event.group_id, file=file_path, name=name)

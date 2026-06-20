@@ -61,6 +61,11 @@ sudo apt-get install ffmpeg
 ```shell
 pip install yt-dlp
 ```
+### 🛠️ 外部依赖变更
+如需完整体验评论渲染，需确保环境安装了以下依赖（插件内已做 `ImportError` 捕获，未安装会安全降级到文字合并转发模式）：
+- `nonebot_plugin_htmlrender`
+- `pillow` (PIL)
+- `aiohttp`
 ## ⚙️ 配置
 
 在 nonebot2 项目的`.env`文件中添加下表中的可选配置
@@ -82,6 +87,9 @@ GLOBAL_RESOLVE_CONTROLLER="" # 全局禁止的解析，示例 GLOBAL_RESOLVE_CON
 ```shell
 @机器人 开启解析
 @机器人 关闭解析
+@机器人 开启评论
+@机器人 关闭评论
+@机器人 切换评论模式 #在 `【HTML图片渲染】` 和 `【文字合并转发】` 模式间切换
 查看关闭解析
 ```
 
